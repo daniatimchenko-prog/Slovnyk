@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8"><title>Слівник</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="theme-color" content="#0e6b64"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Слівник">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700;800&display=swap">
+<style>
+:root{--bg:#eef2ef;--sf:#fff;--tx:#14262b;--mt:#5d7177;--ac:#0e6b64;--ac2:#f2a93b;--ok:#1f9d55;--bad:#d1453b;--ln:#d5ded9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1a1c;--sf:#172629;--tx:#e8f0ee;--mt:#8fa5aa;--ac:#3fc4b8;--ln:#2a3f43}}
+*{box-sizing:border-box}html{height:100%}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--tx);font:16px/1.45 Onest,system-ui,sans-serif}
+#app{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:28px;font-weight:800;margin:4px 0 14px;letter-spacing:-.02em}h2{font-size:18px;margin:20px 0 8px}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:16px;padding:16px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat b{display:block;font-size:28px;font-weight:800}.stat span{color:var(--mt);font-size:14px}
+button,.btn{font:inherit;border:0;border-radius:14px;padding:13px 18px;background:var(--ac);color:#fff;font-weight:700;cursor:pointer}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--ln)}button.ok{background:var(--ok)}button.bad{background:var(--bad)}
+button.big{width:100%;padding:18px;font-size:19px;background:var(--ac2);color:#2a1a00}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--ac2);outline-offset:2px}
+input,textarea,select{font:inherit;width:100%;padding:12px;border-radius:12px;border:1px solid var(--ln);background:var(--sf);color:var(--tx)}
+textarea{min-height:160px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:4px;background:var(--sf);border-top:1px solid var(--ln);padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;max-width:140px;background:transparent;color:var(--mt);padding:10px 4px;font-size:14px}nav button.on{color:var(--ac);background:var(--bg)}
+.bar{height:10px;background:var(--ln);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{justify-content:space-between}
+.mt{color:var(--mt);font-size:14px}.chips button{padding:8px 12px;font-size:14px}
+.flip{perspective:900px;margin:14px 0}.fc{position:relative;min-height:260px;transition:transform .45s;transform-style:preserve-3d;cursor:pointer}
+.fc.f{transform:rotateY(180deg)}.fc>div{position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;font-size:24px;font-weight:700;background:var(--sf);border:1px solid var(--ln);border-radius:22px}
+.fc>div+div{transform:rotateY(180deg);color:var(--ac)}
+.opt{display:block;width:100%;text-align:left;margin-bottom:8px;background:var(--sf);color:var(--tx);border:1px solid var(--ln)}
+.opt.r{background:var(--ok);color:#fff}.opt.w{background:var(--bad);color:#fff}
+.q{font-size:24px;font-weight:700;margin:18px 0}.fb{padding:10px 12px;border-radius:12px;margin:10px 0;font-weight:600}.fb.g{background:#1f9d5530}.fb.n{background:#d1453b30}
+.item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--ln)}.item:last-child{border:0}
+.tbl{max-height:260px;overflow:auto}.dup{opacity:.5;text-decoration:line-through}
+@media (prefers-reduced-motion:reduce){.fc{transition:none}}
+</style></head><body><div id="app"></div>
+<nav id="nav"></nav>
+<script>
+const K='slovnyk.v1';
+let S={cards:[],log:{},goal:30,dir:'mix',cs:false,typo:true,streakBest:0};
+try{const r=localStorage.getItem(K);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+S.cards.forEach(c=>{c.h=c.h||[];c.set=c.set||'Імпорт'});
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){alert('Не вдалося зберегти. Зробіть резервну копію у «Ще».')}};
+const $=s=>document.querySelector(s),DAY=864e5;
+const dk=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+let view='home',ses=null,imp=null;
+
+/* ---- scheduling (спрощений FSRS: стабільність + складність) ---- */
+const isNew=c=>!c.reps, isKnown=c=>c.reps&&c.st>=14, isHard=c=>c.fav||c.lapses>=2;
+function review(c,g){ // g:1 не знаю, 2 важко, 3 добре, 4 легко
+  const now=Date.now();(c.h=c.h||[]).push([now,g]);if(c.h.length>30)c.h.shift();
+  c.reps=(c.reps||0)+1;
+  if(g===1){c.lapses=(c.lapses||0)+1;c.df=Math.min(10,(c.df||5)+1);c.st=Math.max(.4,(c.st||1)*.4);c.due=now+5*60e3}
+  else{
+    c.df=Math.min(10,Math.max(1,(c.df||5)+(g===2?.5:g===4?-.7:-.3)));
+    const f=1+(11-c.df)*(g===2?.12:g===4?.5:.3);
+    c.st=c.reps===1?[0,0,1.2,3,7][g]:Math.max(c.st*f,[0,0,1.2,2,5][g]);
+    c.due=now+c.st*DAY;
+  }
+  bump();save();
+}
+const dueList=()=>S.cards.filter(c=>c.reps&&c.due<=Date.now()).sort((a,b)=>a.due-b.due);
+const todayNew=()=>S.cards.filter(c=>c.h&&c.h.length&&dk(new Date(c.h[0][0]))===dk()).length;
+const metDay=d=>{const k=dk(d);return !!(S.met&&S.met[k])||(S.log[k]||0)>=S.goal};
+function streak(){let n=0;const d=new Date();if(!metDay(d))d.setDate(d.getDate()-1);while(metDay(d)){n++;d.setDate(d.getDate()-1)}if(n>(S.streakBest||0))S.streakBest=n;return n}
+function bump(){const k=dk();S.log[k]=(S.log[k]||0)+1;if(S.log[k]>=S.goal)(S.met=S.met||{})[k]=1;streak()}
+const sum=days=>{let t=0;for(let i=0;i<days;i++)t+=S.log[dk(new Date(Date.now()-i*DAY))]||0;return t};
+
+/* ---- tts, checking ---- */
+function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+const norm=s=>{s=String(s).replace(/\(.*?\)/g,'').replace(/[.!?…"“”]+$/g,'').replace(/\s+/g,' ').trim();return S.cs?s:s.toLowerCase()};
+function lev(a,b){const m=[];for(let i=0;i<=a.length;i++){m[i]=[i];for(let j=1;j<=b.length;j++)m[i][j]=i?0:j}
+for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]}
+function check(inp,ans,en){const x=norm(inp);if(!x)return 0;
+  const alts=en?[ans]:[ans,...ans.split(/[;,/]|\s+—\s+/)];let best=9;
+  for(const a of alts){const y=norm(a);if(!y)continue;best=Math.min(best,x===y?0:lev(x,y))}
+  return best===0?2:(S.typo&&best<=(norm(ans).length>=10?2:1)&&norm(ans).length>=5?1:0)} // 2 точно, 1 майже, 0 ні
+const Q=(c,en)=>en?c.en:c.uk, A=(c,en)=>en?c.uk:c.en;
+
+/* ---- import ---- */
+function parse(txt,set){
+  const lines=txt.replace(/\r/g,'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const sep=['\t',';',' - ',' — ',','].find(s=>lines.filter(l=>l.includes(s)).length>=lines.length*.6)||'\t';
+  const have=new Set(S.cards.map(c=>c.en.toLowerCase()+'|'+c.uk.toLowerCase())),seen=new Set(),rows=[];
+  for(const l of lines){const p=l.split(sep).map(x=>x.trim());const en=p[0]||'',uk=p[1]||'';
+    const key=en.toLowerCase()+'|'+uk.toLowerCase();
+    rows.push({en,uk,ipa:p[2]||'',ex:p[3]||'',set,err:!en||!uk?'порожнє поле':'',dup:have.has(key)||seen.has(key)});seen.add(key)}
+  return rows}
+function doImport(){const ok=imp.rows.filter(r=>!r.err&&!r.dup);
+  ok.forEach(r=>S.cards.push({id:uid(),en:r.en,uk:r.uk,ipa:r.ipa,ex:r.ex,set:r.set||'Імпорт',reps:0,lapses:0,fav:0,h:[],created:Date.now()}));
+  save();alert(`Імпортовано: ${ok.length}\nДублікатів пропущено: ${imp.rows.filter(r=>r.dup).length}\nПомилок: ${imp.rows.filter(r=>r.err).length}`);imp=null;view='home';render()}
+
+/* ---- session ---- */
+function retry(){const ids=[...new Set(ses.wrong.map(c=>c.id))],m=ses.mode;ses={mode:m==='test'?'learn':m,q:shuf(ids),total:ids.length,done:0,wrong:[],right:0,step:0,fl:false,ans:null,seen:{}};render()}
+let SL=[];
+function vSets(){const g={};S.cards.forEach(c=>(g[c.set]=g[c.set]||[]).push(c));SL=Object.keys(g);
+  return`<h1>Набори</h1><button style="width:100%;margin-bottom:12px" onclick="newSet()">+ Новий набір</button>`+(SL.map((s,i)=>{const a=g[s];return`<div class="card"><b>${esc(s)}</b><div class="mt">${a.length} слів · знаю ${a.filter(isKnown).length}</div><div class="grid" style="margin-top:10px"><button onclick="start('flash',{set:SL[${i}]})">Картки</button><button onclick="start('learn',{set:SL[${i}]})">Learn</button><button onclick="start('write',{set:SL[${i}]})">Write</button><button onclick="start('test',{set:SL[${i}]})">Test</button></div><div class="row chips" style="margin-top:10px"><button class="sec" onclick="setAct('open',${i})">Слова</button><button class="sec" onclick="setAct('ren',${i})">Назва</button><button class="sec" onclick="setAct('cp',${i})">Копія</button><button class="sec" onclick="setAct('ex',${i})">Експорт</button><button class="sec" onclick="setAct('del',${i})">Видалити</button></div></div>`}).join('')||'<p class="mt">Наборів ще немає.</p>')}
+function setAct(a,i){const s=SL[i],l=S.cards.filter(c=>c.set===s);
+  if(a==='open'){fs=s;ff='all';fq='';view='dict'}
+  else if(a==='ren'){const n=prompt('Нова назва набору:',s);if(!n||!n.trim())return;l.forEach(c=>c.set=n.trim())}
+  else if(a==='cp'){const n=prompt('Назва копії:',s+' (копія)');if(!n||!n.trim())return;l.forEach(c=>S.cards.push({...c,id:uid(),set:n.trim(),reps:0,lapses:0,fav:0,h:[],st:0,due:0}))}
+  else if(a==='del'){if(!confirm(`Видалити набір «${s}» і ${l.length} слів?`))return;S.cards=S.cards.filter(c=>c.set!==s)}
+  else if(a==='ex'){exp(l,s);return}
+  save();render()}
+function newSet(){const n=prompt('Назва нового набору:');if(!n||!n.trim())return;imp=null;view='imp';render();$('#sn').value=n.trim()}
+function exp(l,name){const t=l.map(c=>[c.en,c.uk,c.ipa||'',c.ex||''].join('\t')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));a.download=name+'.txt';a.click()}
+function pickNew(l,k){const g={};shuf(l).forEach(c=>(g[c.set]=g[c.set]||[]).push(c));const ks=shuf(Object.keys(g)),o=[];while(o.length<k&&ks.some(s=>g[s].length))for(const s of ks)if(g[s].length&&o.length<k)o.push(g[s].pop());return o}
+function start(mode,opt={}){
+  let ids;
+  if(mode==='cloze')ids=shuf(S.cards.filter(c=>mk(c))).slice(0,20).map(c=>c.id);else if(opt.set)ids=shuf(S.cards.filter(c=>c.set===opt.set)).map(c=>c.id);else if(mode==='test')ids=shuf(S.cards).slice(0,opt.n||20).map(c=>c.id);
+  else{let d=dueList(),n=S.cards.filter(isNew);
+    if(opt.hard){d=d.filter(isHard);n=[]}else n=pickNew(n,Math.min(15,Math.max(0,S.goal-todayNew())));
+    ids=shuf([...d.slice(0,25),...n]).map(c=>c.id)}
+  if(!ids.length){alert('На сьогодні нічого немає: усе повторено або база порожня.');return}
+  ses={mode,q:ids,total:ids.length,done:0,wrong:[],right:0,step:0,fl:false,ans:null,seen:{}};view='study';render()}
+const cur=()=>S.cards.find(c=>c.id===ses.q[0]);
+function grade(ok,g){const c=cur();ses.q.shift();
+  const T=ses.mode==='test'||ses.mode==='cloze';ses.cs=ses.cs||{};
+  if(ok){ses.right++;ses.seen[c.id]=1;
+    if(T)ses.done++;
+    else{const need=c.reps&&c.st>=7?1:3,n=(ses.cs[c.id]||0)+1;ses.cs[c.id]=n;
+      if(n>=need){review(c,g||3);if(need===3){c.st=Math.max(c.st,7);c.due=Math.max(c.due,Date.now()+7*DAY);save()}ses.done++}
+      else{(c.h=c.h||[]).push([Date.now(),g||3]);bump();c.reps=Math.max(1,c.reps||0);c.due=Date.now()+10*60e3;save();ses.q.splice(Math.min(3+n*4,ses.q.length),0,c.id)}}}
+  else{ses.wrong.push(c);ses.seen[c.id]=0;ses.cs[c.id]=0;if(T)ses.done++;else{review(c,1);ses.q.splice(Math.min(3,ses.q.length),0,c.id)}}
+  ses.fl=false;ses.ans=null;ses.r=null;ses.opts=null;ses.k=null;ses.en=undefined;ses.fen=undefined;render()}
+function gl(ok){if(!ses||!ses.q.length)return;const t=Date.now();if(t-(ses.t||0)<300)return;ses.t=t;grade(ok)}
+function pick(i){if(!ses||ses.ans!==null||!ses.opts)return;const c=cur(),en=ses.en,id=c.id;ses.ans=i;const ok=ses.opts[i]===A(c,en);render();setTimeout(()=>{if(ses&&ses.q[0]===id&&ses.ans===i)grade(ok)},ok?650:1400)}
+function submit(){if(!ses||ses.ans!==null)return;const c=cur(),v=$('#ti').value,en=ses.en;const r=check(v,ses.mode==='cloze'?mk(c).a:A(c,en),!en);ses.ans=v;ses.r=r;render()}
+function pickEn(){return S.dir==='mix'?(ses.alt=!ses.alt):S.dir==='en'}
+function mic(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;try{const r=new R();r.lang='en-US';r.maxAlternatives=1;r.onresult=e=>{$('#ti').value=e.results[0][0].transcript;submit()};r.onerror=e=>alert('Мікрофон недоступний ('+e.error+'). Введіть відповідь текстом.');r.start()}catch(e){alert('Розпізнавання мовлення не підтримується в цьому браузері.')}}
+function nextTyped(){if(!ses||ses.ans===null)return;grade(ses.r>0,ses.r===2?3:ses.r===1?2:1)}
+
+/* ---- views ---- */
+function render(){
+  $('#nav').innerHTML=[['home','Головна'],['sets','Набори'],['dict','Словник'],['imp','Імпорт'],['vp','Practice'],['more','Ще']].map(([v,t])=>`<button class="${view===v?'on':''}" onclick="view='${v}';ses=null;render()">${t}</button>`).join('');
+  $('#nav').style.display=view==='study'?'none':'flex';
+  $('#app').innerHTML=({home:vHome,sets:vSets,dict:vDict,imp:vImp,more:vMore,vp:vVP,study:vStudy})[view]();
+  if(view==='study'&&$('#ti'))$('#ti').focus();window.scrollTo(0,0)}
+function vHome(){const n=S.cards.length,kn=S.cards.filter(isKnown).length,du=dueList().length,tn=Math.max(0,S.goal-todayNew()),nw=S.cards.filter(isNew).length;
+  const t=S.log[dk()]||0,pc=Math.min(100,t/S.goal*100);
+  if(!n)return`<h1>Слівник</h1><div class="card"><p>База порожня. Імпортуйте слова з Quizlet: вставте експортований текст або завантажте файли.</p><button class="big" onclick="seed()">Додати мої слова (${SEED.reduce((a,s)=>a+s[1].split('\n').length,0)})</button><button class="sec" style="width:100%;margin-top:10px" onclick="view='imp';render()">Імпортувати з Quizlet</button></div>`;
+  return`<h1>Слівник</h1>${vToday()}<div class="card"><div class="row sp"><b>Сьогодні: ${t} з ${S.goal}</b><b style="color:var(--ac)">🔥 ${streak()} дн. підряд</b></div><div class="bar" style="margin:10px 0"><i style="width:${pc}%"></i></div><div class="mt">${metDay(new Date())?'Ціль на сьогодні виконано ✓':`До цілі ще ${Math.max(0,S.goal-t)}${streak()?', щоб серія не перервалась':''}`} · рекорд: ${S.streakBest||0} дн.</div>
+  <button class="big" onclick="start('flash')">Почати навчання</button></div>
+  <div class="grid"><div class="card stat"><b>${n}</b><span>Усього слів</span></div><div class="card stat"><b>${kn}</b><span>Знаю</span></div><div class="card stat"><b>${n-kn}</b><span>Ще вчити (нових: ${nw})</span></div><div class="card stat"><b>${du}</b><span>Повторити сьогодні</span></div></div>
+  <h2>Режими</h2><div class="grid"><button class="sec" onclick="start('flash')">Картки</button><button class="sec" onclick="start('learn')">Learn</button><button class="sec" onclick="start('write')">Write</button><button class="sec" onclick="start('test')">Тест (20)</button><button class="sec" onclick="start('cloze')">Пропуск у реченні</button></div>
+  <button class="sec" style="width:100%;margin-top:10px" onclick="start('flash',{hard:1})">Лише складні й обрані (${S.cards.filter(isHard).length})</button>
+  <h2>Активність</h2><div class="card">${[['7 днів',7],['30 днів',30]].map(([l,d])=>`<div class="row sp"><span>За ${l}</span><b>${sum(d)} відповідей</b></div>`).join('')}<div class="mt" style="margin-top:6px">Нові слова на сьогодні: ${tn}</div></div>`}
+
+function vStudy(){
+  if(!ses.q.length)return vDone();
+  const c=cur(),m=ses.mode,prog=`<div class="row sp"><button class="sec" onclick="view='home';ses=null;render()">Вийти</button><span class="mt">${ses.done} / ${ses.total}</span></div><div class="bar" style="margin:10px 0"><i style="width:${ses.done/ses.total*100}%"></i></div>`;
+  if(m==='flash'){const en=ses.fen===undefined?(ses.fen=pickEn()):ses.fen;return prog+`<div class="flip"><div class="fc ${ses.fl?'f':''}" onclick="ses.fl=!ses.fl;if(ses.fl&&ses.fen)speak('${esc(c.en).replace(/'/g,"\\'")}');render()"><div>${esc(Q(c,en))}</div><div>${esc(A(c,en))}${c.ipa?`<br><small>${esc(c.ipa)}</small>`:''}${exH(c)}</div></div></div>
+  <div class="row"><button class="sec" onclick="speak(cur().en)">Вимова</button><button class="sec" onclick="cur().fav=cur().fav?0:1;save();render()">${c.fav?'★ Обране':'☆ В обране'}</button></div>
+  <div class="grid" style="margin-top:12px"><button class="bad" onclick="gl(0)">Не знаю</button><button class="ok" onclick="gl(1)">Знаю</button></div><p class="mt">Натисніть на картку, щоб побачити переклад.</p>`}
+  const CL=m==='cloze',mm=CL?mk(c):null;
+  const kind=m==='write'||CL?'w':m==='test'?(ses.k=ses.k||(Math.random()<.5?'m':'w')):(ses.seen[c.id]===undefined&&!c.reps?'m':'w');
+  const en=m==='write'||CL?false:ses.en===undefined?(ses.en=m==='test'?Math.random()<.5:pickEn()):ses.en;
+  ses.en=en;let body='';
+  if(kind==='m'){if(!ses.opts){const o=shuf(S.cards.filter(x=>x.id!==c.id&&A(x,en)!==A(c,en))).slice(0,3).map(x=>A(x,en));ses.opts=shuf([...o,A(c,en)])}
+    body=ses.opts.map((o,i)=>`<button class="opt ${ses.ans!==null&&o===A(c,en)?'r':ses.ans===i?'w':''}" ${ses.ans!==null?'disabled':''} onclick="pick(${i})">${esc(o)}</button>`).join('')}
+  else{body=ses.ans===null?`<input id="ti" autocomplete="off" autocapitalize="off" placeholder="Ваша відповідь" onkeydown="if(event.key==='Enter')submit()">${!en?'<p class="mt">Щоб продиктувати відповідь, натисніть 🎤 на клавіатурі телефона.</p>':''}<button style="width:100%;margin-top:10px" onclick="submit()">Перевірити</button>`
+    :`<div class="fb ${ses.r?'g':'n'}">${ses.r===2?'Правильно':ses.r===1?'Майже: дрібна помилка':'Неправильно'}<br>Ви написали: <b>${esc(ses.ans)}</b><br>Відповідь: <b>${esc(CL?mm.a:A(c,en))}</b>${exH(c)}</div>${ses.r<2?'<button class="sec" style="width:100%;margin-bottom:10px" onclick="ses.r=2;render()">Я написав правильно</button>':''}<button style="width:100%" onclick="nextTyped()">Далі</button>`}
+  return prog+`<div class="q">${esc(CL?mm.q:Q(c,en))} ${en?`<button class="sec" style="padding:6px 10px" onclick="speak(cur().en)">♪</button>`:''}</div>${CL?`<div class="mt" style="margin:-8px 0 12px">${esc(c.uk)}</div>`:''}`+body}
+
+function vDone(){const pc=Math.round(ses.right/Math.max(1,ses.right+ses.wrong.length)*100);
+  return`<h1>Сесію завершено</h1><div class="card stat"><b>${ses.mode==='test'?Math.round(ses.right/ses.total*100):pc}%</b><span>Правильних відповідей: ${ses.right}</span></div>
+  ${ses.wrong.length?`<h2>Помилки</h2><div class="card">${[...new Map(ses.wrong.map(c=>[c.id,c])).values()].map(c=>`<div class="item"><span>${esc(c.en)}</span><span class="mt">${esc(c.uk)}</span></div>`).join('')}</div>`:''}
+  ${ses.wrong.length?'<button class="sec" style="width:100%;margin-bottom:10px" onclick="retry()">Повторити помилки</button>':''}<button class="big" onclick="view='home';ses=null;render()">На головну</button>`}
+
+let fq='',ff='all',fs='';
+function vDict(){const sets=[...new Set(S.cards.map(c=>c.set))];
+  let l=S.cards.filter(c=>(!fq||(c.en+' '+c.uk).toLowerCase().includes(fq.toLowerCase()))&&(!fs||c.set===fs)&&(ff==='all'||(ff==='new'&&isNew(c))||(ff==='learn'&&!isNew(c)&&!isKnown(c))||(ff==='known'&&isKnown(c))||(ff==='fav'&&c.fav)||(ff==='hard'&&isHard(c))));
+  const tot=l.length;DL=l;l=l.slice(0,100);
+  return`<h1>Словник</h1><input placeholder="Пошук слова чи перекладу" value="${esc(fq)}" oninput="fq=this.value;clearTimeout(window._t);window._t=setTimeout(()=>{render();$('input').focus();$('input').setSelectionRange(99,99)},250)">
+  <div class="row chips" style="margin:10px 0">${[['all','Усі'],['new','Нові'],['learn','Вчу'],['known','Знаю'],['fav','Обране'],['hard','Складні']].map(([k,t])=>`<button class="${ff===k?'':'sec'}" onclick="ff='${k}';render()">${t}</button>`).join('')}</div>
+  <select onchange="fs=this.value;render()"><option value="">Усі набори</option>${sets.map(s=>`<option ${fs===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
+  <div class="row sp" style="margin:10px 0"><span class="mt">Знайдено: ${tot}${tot>100?' (показано 100)':''}</span><span class="row"><button class="sec" onclick="mvAll()">→ Набір</button><button class="sec" onclick="addWord()">+ Слово</button></span></div>
+  <div class="card">${l.map(c=>`<div class="item"><div><b>${esc(c.en)}</b><div class="mt">${esc(c.uk)} · ${esc(c.set)} · ${c.h?c.h.length:0} повт.</div>${exH(c)}</div><div class="row"><button class="sec" style="padding:6px 10px" onclick="speak('${esc(c.en).replace(/'/g,"\\'")}')">♪</button><button class="sec" style="padding:6px 10px" onclick="tf('${c.id}')">${c.fav?'★':'☆'}</button><button class="sec" style="padding:6px 10px" onclick="ed('${c.id}')">✎</button></div></div>`).join('')||'<p class="mt">Нічого не знайдено.</p>'}</div>`}
+const tf=id=>{const c=S.cards.find(x=>x.id===id);c.fav=c.fav?0:1;save();render()};
+function ed(id){const c=S.cards.find(x=>x.id===id),en=prompt('Англійською (порожньо = видалити слово):',c.en);if(en===null)return;
+  if(en===''){if(confirm('Видалити слово?')){S.cards=S.cards.filter(x=>x.id!==id)}}else{c.en=en;{const u0=c.uk;c.uk=prompt('Переклад:',c.uk)??c.uk;if(c.uk!==u0)c.ued=1}c.ipa=prompt('Транскрипція IPA:',c.ipa||'')??c.ipa;c.ex=prompt('Приклад речення:',c.ex||'')??c.ex;const s=prompt('Набір (категорія):',c.set);if(s&&s.trim()&&s.trim()!==c.set){if(!c.src)c.src=c.set;c.set=s.trim()}}save();render()}
+function addWord(){const en=prompt('Англійське слово:');if(!en)return;const uk=prompt('Переклад:');if(!uk)return;S.cards.push({id:uid(),en,uk,set:fs||'Власні',reps:0,lapses:0,fav:0,h:[]});save();render()}
+
+function vImp(){
+  if(imp){const ok=imp.rows.filter(r=>!r.err&&!r.dup).length,d=imp.rows.filter(r=>r.dup).length,e=imp.rows.filter(r=>r.err).length;
+    return`<h1>Перевірка імпорту</h1><div class="card">Готово до імпорту: <b>${ok}</b><br>Дублікатів: ${d} · Помилок: ${e}<div class="mt">Набір: ${esc(imp.set)}</div></div>
+    <div class="card tbl">${imp.rows.slice(0,300).map((r,i)=>`<div class="item ${r.dup?'dup':''}"><span>${esc(r.en)||'—'}</span><span class="mt">${esc(r.uk)||'—'} ${r.err?'⚠':''}</span><button class="sec" style="padding:2px 9px" onclick="imp.rows.splice(${i},1);render()">×</button></div>`).join('')}${imp.rows.length>300?`<p class="mt">Показано 300 з ${imp.rows.length}; решта імпортується так само.</p>`:''}</div>
+    <div class="grid"><button class="sec" onclick="imp=null;render()">Назад</button><button class="ok" onclick="doImport()">Імпортувати ${ok}</button></div>`}
+  return`<h1>Імпорт</h1><div class="card"><p class="mt">Quizlet: відкрийте набір на сайті → «⋯» → Експортувати → між термінами Tab, між рядками новий рядок → Копіювати. Підходить і будь-який текст «слово[Tab]переклад», а також CSV чи «слово - переклад».</p>
+  <input id="sn" placeholder="Назва набору" value="Quizlet"><textarea id="tx" placeholder="Вставте слова сюди" style="margin-top:8px"></textarea>
+  <button style="width:100%;margin-top:10px" onclick="pv()">Переглянути</button></div>
+  <div class="card"><b>Або файли</b><p class="mt">Можна обрати кілька .txt чи .csv: кожен файл стане окремим набором.</p><input type="file" multiple accept=".txt,.csv,.tsv" onchange="files(this.files)"></div>`}
+function pv(){const t=$('#tx').value;if(!t.trim())return alert('Вставте текст зі словами.');imp={set:$('#sn').value||'Імпорт',rows:parse(t,$('#sn').value||'Імпорт')};render()}
+async function files(fl){let rows=[];for(const f of fl){const set=f.name.replace(/\.\w+$/,'');const r=parse(await f.text(),set);const seen=new Set(rows.map(x=>x.en.toLowerCase()+'|'+x.uk.toLowerCase()));r.forEach(x=>{if(seen.has(x.en.toLowerCase()+'|'+x.uk.toLowerCase()))x.dup=true});rows=rows.concat(r)}
+  imp={set:[...fl].map(f=>f.name).join(', '),rows};render()}
+
+function vMore(){return`<h1>Ще</h1><div class="card"><h2 style="margin-top:0">Налаштування</h2>
+  <label class="mt">Щоденна ціль (нових слів)</label><select onchange="S.goal=+this.value;save()">${[10,20,30,50,100].map(n=>`<option ${S.goal===n?'selected':''}>${n}</option>`).join('')}</select>
+  <label class="mt">Напрям у картках, Learn і тесті</label><select onchange="S.dir=this.value;save()"><option value="mix" ${S.dir==='mix'?'selected':''}>Чергувати: англ → укр, потім укр → англ</option><option value="en" ${S.dir==='en'?'selected':''}>Англійська → українська</option><option value="uk" ${S.dir==='uk'?'selected':''}>Українська → англійська</option></select>
+  <div class="row" style="margin-top:10px"><label><input type="checkbox" style="width:auto" ${S.cs?'checked':''} onchange="S.cs=this.checked;save()"> Враховувати регістр</label></div>
+  <div class="row"><label><input type="checkbox" style="width:auto" ${S.typo?'checked':''} onchange="S.typo=this.checked;save()"> Прощати дрібні помилки</label></div></div>
+  <div class="card"><h2 style="margin-top:0">Мої слова</h2><button class="sec" style="width:100%" onclick="seed()">Додати вбудовані слова (без дублів)</button><button class="sec" style="width:100%;margin-top:8px" onclick="catAll()">Розподілити за категоріями</button><button class="sec" style="width:100%;margin-top:8px" onclick="catUndo()">Повернути початкові набори</button></div><div class="card"><h2 style="margin-top:0">Резервна копія</h2><button class="sec" style="width:100%;margin-bottom:10px" onclick="exp(S.cards,'slovnyk-all')">Експорт усієї бази (TXT)</button><div class="grid"><button onclick="bk()">Зберегти файл</button><button class="sec" onclick="$('#rf').click()">Відновити</button></div><input id="rf" type="file" accept=".json" hidden onchange="rs(this.files[0])"><p class="mt">Дані зберігаються в браузері цього пристрою. Робіть копію регулярно.</p>
+  <button class="bad sec" style="width:100%;color:var(--bad)" onclick="if(confirm('Видалити всі слова та прогрес?')){S.cards=[];S.log={};save();render()}">Очистити базу</button></div>`}
+const SEED=[['Гроші',`spend money like water¦розтринькувати гроші
+run out of money¦залишатись без грошей
+be made of money¦бути дуже багатим
+short of money¦не вистачає грошей
+have money on you¦мати гроші при собі
+be careful with money¦бути обачним з грошима
+be in the red¦бути в боргах
+raise money¦збирати гроші
+live in poverty¦жити в бідності
+can't afford¦не можу дозволити собі
+Nothing has moved forward¦Нічого не зрушилося з місця
+spin my wheels¦витрачати зусилля без результату
+achievement¦досягнення
+make a good impression¦справити гарне враження`],
+['Речення 1',`Everything went black after I hit my head¦Все потемніло після того, як я вдарився головою
+I felt embarrassed when I forgot her name.¦Я почувався збентеженим(зніяковілим), коли забув її ім'я.
+The commander gave a profound speech before the mission.¦Командир виголосив глибоку промову перед місією.
+The sunset was spectacular.¦Захід сонця був вражаючим.
+This movie is very atmospheric and emotional.¦Цей фільм дуже атмосферний та емоційний.
+She asked a profound question.¦Вона поставила глибоке запитання.
+I was speechless after hearing the news.¦Я втратив дар мови після цієї новини.
+I felt relieved after finishing the exam.¦Я відчув полегшення після завершення іспиту
+Setting up a bank account took me two hours.¦Відкриття банківського рахунку зайняло у мене дві години.
+He left without even saying goodbye.¦Він пішов, навіть не попрощавшись.
+It takes time to adapt to a new environment.¦Потрібен час, щоб адаптуватися до нового середовища.
+I'm still navigating this new system.¦Я все ще розбираюся з цією новою системою.
+The company expanded its services.¦Компанія розширила свої послуги.
+This job doesn't satisfy me anymore.¦Ця робота більше мене не задовольняє.
+Curiosity helps people learn faster.¦Цікавість допомагає людям швидше вчитися.
+That was a brainless decision.¦Це було тупе рішення.
+The training was brutal.¦Тренування було дуже важким.
+His relocation changed his life completely.¦Його переїзд повністю змінив життя.
+We had a meaningful conversation.¦У нас була змістовна розмова
+She has very expressive eyes.¦У неї дуже виразні очі.
+I saw him in the corridor.¦Я побачив його в коридорі.
+She gave me a disapproving look.¦Вона подивилася на мене несхвально.
+You should reduce your sugar intake.¦Тобі слід зменшити споживання цукру.
+Eggs contain a lot of protein.¦Яйця містять багато білка.
+Healthy fats are important for the body.¦Корисні жири важливі для організму.
+Lack of sleep can worsen your health.¦Нестача сну може погіршити твоє здоров'я.
+His video went viral overnight.¦Його відео стало вірусним за одну ніч.
+Don't bottle up your emotions.¦Не стримуй свої емоції в собі.
+I was boiling with anger after that argument.¦Я кипів від злості після тієї сварки.
+The teacher punished him for misbehavior.¦Вчитель покарав його за погану поведінку.
+That excuse sounds ridiculous.¦Це виправдання звучить абсурдно.
+She made rude remarks about my clothes.¦Вона зробила грубі зауваження щодо мого одягу.
+The company had to let him go.¦Компанії довелося його звільнити.
+Take a deep breath and breathe out slowly.¦Зроби глибокий вдих і повільно видихни.`],
+['Робота й ідіоми',`We are about to leave.¦Ми збираємося йти
+They are getting a little creative¦Вони трохи проявляють творчість
+There are many rumors¦Ходить багато чуток
+Firing people¦Звільнення людей
+Internally¦внутрішньо, зсередини
+implement¦впроваджувати
+empowering for people¦розширення можливостей для людей
+They really got very far¦Вони справді просунилися дуже далеко
+External push¦Зовнішній поштовх
+Social media can sometimes cause alienation.¦Соціальні мережі іноді можуть спричиняти відчуження.
+leverage¦використовувати з вигодою; важіль впливу
+She used her experience as leverage to get the job.¦Вона використала свій досвід як важіль впливу, щоб отримати роботу.
+He was placed on the fast-track program.¦Його включили до програми швидкого просування.
+fast track¦швидкий шлях
+emotional toll¦емоційне виснаження
+The long war took an emotional toll on people.¦Тривала війна емоційно виснажила людей.
+Starting a business often involves a lot of red tape.¦Відкриття бізнесу часто пов'язане з великою кількістю бюрократії.
+After a few months, he found his footing at work.¦Через кілька місяців він освоївся на роботі.
+sophisticated taste¦вишуканий смак`],
+['Фільми й думки',`She confessed she had always looked down on it until she had tried it.¦Вона зізналася, що завжди дивилася на це зверхньо, поки сама не спробувала.
+she confessed¦Вона зізналася
+He pointed out the mistake¦Він вказав на помилку
+It lasted one year.¦Це тривало рік
+inspiration and imagination¦натхнення і уявлення
+innovation¦інновація
+He obviously has a talent¦Він очевидно має талант
+She thinks differently from me¦Вона думає не так, як я
+Exploring the Self¦Дослідження себе (пізнання себе)
+industrial capacity¦виробнича потужність
+I see your point¦Я розумію твою точку зору
+creativity¦творчість, креативність
+When I'm binge-watching a TV show¦Коли я дивлюся серіал серію за серією
+skip the title sequence at the beginning of the episode¦Пропустити заставку на початку серії
+I like to stay and watch the credit at the end so I'm often the last to leave.¦Мені подобається залишатися і дивитися титри в кінці, тому я часто йду останнім
+This is a little-known fact about the city.¦Це маловідомий факт про місто
+We watched a feature-length film yesterday.¦Ми вчора дивилися повнометражний фільм
+This is an eagerly awaited movie.¦Це фільм, якого з нетерпінням чекають
+The book is well-reviewed by critics.¦Книга добре оцінена критиками
+He is an award-winning actor.¦Він актор, відзначений нагородами
+The film is very thought-provoking.¦Фільм змушує задуматися
+There goes your promotion¦Прощавай, підвищення`],
+['Новини й слова',`endurance¦витривалість
+He was transferred to another department.¦Його перевели в інший відділ.
+Hatred only creates more problems.¦Ненависть лише створює більше проблем.
+She is satisfied with the results.¦Вона задоволена результатами.
+The problem wasn't as serious as we thought.¦Проблема не була такою серйозною, як ми думали.
+Don't feel sorry for me, I'm fine.¦Не жалій мене, зі мною все добре.
+This information is relevant to our topic.¦Ця інформація є актуальною для нашої теми.
+She said to me that she was tired.¦Вона сказала мені, що втомилася.
+He asked for help.¦Він попросив про допомогу.
+There is a news item about the event.¦Є новина про цю подію.
+The headlines are shocking today.¦Сьогоднішні заголовки новин шокують.
+Justify¦виправдовувати
+unavoidable¦неминучий
+Agreement¦угода, договір
+connect¦з'єднувати
+Unite¦об'єднувати
+My friend is counting on me¦Мій друг розраховує на мене
+he stinks¦Він смердить
+It doesn't have to be this way¦Це не мусить бути так
+I'll silence anyone¦Я змушу будь-кого замовкнути
+well-being¦благополуччя, добробут
+It also encourages people to adopt healthier habits¦Це також заохочує людей впроваджувати здорові звички`],
+['Граматика й побут',`Unlike my brother, I like coffee.¦На відміну від мого брата мені подобається кава
+I have two hobbies, namely reading and running.¦В мене є два хобі, а саме читання та біг
+I am excited about the trip.¦Я схвильований (радий) через поїздку
+I'm comfortable speaking English.¦Мені комфортно говорити англійською
+You can go out provided that you finish work.¦Ти можеш піти за умови, що закінчиш роботу.
+She split up with her boyfriend.¦Вона розійшлася зі своїм хлопцем.
+I'm crazy about football.¦Я без розуму від футболу.
+He winked at me.¦Він підморгнув мені
+I weed the garden every weekend.¦Я полю город кожні вихідні.
+He smokes weed sometimes.¦Він іноді курить траву.
+We plant potatoes in spring.¦Ми садимо картоплю навесні.
+I need to recharge my batteries after work.¦Мені потрібно відновити сили після роботи.
+We should help people with mental issues.¦Нам слід допомагати людям з психічними проблемами.
+I roast meat in the oven.¦Я запікаю м'ясо в духовці.
+The tree blooms in April.¦Дерево цвіте в квітні.
+I did it by myself.¦Я зробив це сам
+I live on my own.¦Я живу сам
+As far as I know, he is at home.¦Наскільки я знаю, він вдома.
+The view is breathtaking.¦Вид захоплюючий / неймовірний.
+He is very knowledgeable about cars.¦Він добре розбирається в машинах.
+We had a fruitful discussion.¦У нас була продуктивна розмова.
+She is dedicated to her work.¦Вона віддана своїй роботі.
+This book made a profound impact on me.¦Ця книга сильно вплинула на мене.
+He advocates for human rights.¦Він виступає за права людини.
+This technology will revolutionize the world.¦Ця технологія змінить світ (революціонізує).
+He made a contribution to the project.¦Він зробив внесок у проєкт.
+It was a shock for me.¦Це було шоком для мене.
+This car is cheap in comparison with that one.¦Ця машина дешева у порівнянні з тією.
+Compared to last year, this is better.¦У порівнянні з минулим роком, це краще.
+The rent is very expensive.¦Оренда дуже дорога.
+I think it's a good idea.¦Я думаю, це хороша ідея.
+I suppose he is busy.¦Я припускаю, що він зайнятий.
+I don't spend time on commute because I work from home¦Я не витрачаю час на дорогу, бо працюю з дому.
+I work remotely.¦Я працюю віддалено.
+Try not to skip training.¦Намагайся не пропускати тренування.
+Please take some notice of this problem.¦Будь ласка, зверни увагу на цю проблему.`],
+['Квантифікатори',`Gradually increasing¦поступово зростаючий
+Plenty of¦багато, у достатку
+The majority of¦більшість (однина і множина)
+Any¦будь-який; жодного (у запереченнях)
+A lack of¦брак, нестача
+A large number of¦велика кількість (множина)
+Several¦кілька, декілька
+A handful of¦жменька, кілька (множина)
+A minority of¦меншість
+A few¦кілька, декілька (досить)
+Few¦мало, майже немає
+A good deal of¦багато (незлічувальні)
+A little¦трохи (незлічувальний іменник)
+Little¦мало, майже немає (незлічувальні)
+Every¦кожен (однина)
+Each¦кожен окремо (однина)`],
+['Різне 1',`attitude towards us¦ставлення до нас
+draw a conclusion¦робити висновки
+Castle¦замок, палац
+Double in size¦збільшитися вдвічі
+grumpy cat¦буркотливий кіт
+Wheel¦колесо; кермо; крутити
+He wheeled the bike into the garage¦Він закотив велосипед у гараж.
+Knockdown¦нокдаун; удар, що збиває з ніг
+The boxer gave him a knockdown in the first round.¦Боксер збив його з ніг у першому раунді.
+have my blood tested¦здати аналіз крові
+lower my eyes¦опустити очі (від сорому, ніяковості)
+Threaten¦погрожувати
+She never doubted his abilities.¦Вона ніколи не сумнівалася в його здібностях.
+They did up the old house¦Вони відремонтували старий будинок.
+This movie is not appropriate for children¦Цей фільм не підходить для дітей.
+So badly¦дуже сильно
+I admit that I was wrong.¦Я визнаю, що був неправий.
+Right away¦відразу, негайно
+Weekly¦щотижневий
+goggles¦захисні окуляри
+Lead the way¦показувати дорогу
+Quarter of¦чверть`],
+['Одяг і зовнішність',`broad shoulders¦широкі плечі
+heavily built¦міцної статури
+tanned skin¦засмагла шкіра
+unshaven cheeks¦неголені щоки
+baggy trousers¦мішкуваті штани
+stunning view¦приголомшливий вид
+striped shirt¦смугаста сорочка
+checked shirt¦сорочка в клітинку
+Silk¦шовк
+linen trousers¦лляні штани
+leather jacket¦шкіряна куртка
+loose-fitting clothes¦вільний одяг
+fake fur coat¦шуба зі штучного хутра
+Bow tie¦краватка-метелик
+Ripped¦рваний, дірявий
+Importance of water¦важливість води
+Out of fashion¦не в моді
+In fashion¦у моді
+Lend¦позичати (комусь)
+Elegant¦елегантний
+He doesn't care¦йому байдуже, його не турбує
+Gossip¦плітки; пліткувати
+cost a fortune¦коштувати дуже багато
+Prom¦випускний (бал)
+Dress up¦наряджатися
+Low income¦низький дохід
+I'm in a good mood¦Я в гарному настрої.
+pet¦гладити (тварину)
+wavy hair¦хвилясте волосся
+Belt¦ремінь
+Slippers¦капці
+handbag¦жіноча сумочка`],
+['Знайомства й розмови',`He made a favourable impression at the interview.¦Він справив гарне враження на співбесіді.
+Strike up a conversation¦зав'язати розмову
+I struck up a conversation with a stranger on the bus.¦Я завів розмову з незнайомцем в автобусі.
+Have a laugh¦посміятися
+Traveling together helped us create a strong bond.¦Подорож разом допомогла нам створити міцний зв'язок.
+She paid him a compliment on his new haircut.¦Вона зробила йому комплімент щодо нової зачіски.
+Make small talk¦вести світську бесіду
+His smile seemed insincere.¦Його посмішка здавалася нещирою.
+We met at a party and really hit it off.¦Ми зустрілися на вечірці й одразу здружилися.
+I didn't expect her to take to me so quickly¦Я не очікував, що вона так швидко до мене прихилиться.
+He comes across as very confident.¦Він справляє враження дуже впевненого.
+I had time to finish my homework.¦Я встиг закінчити домашнє завдання.
+Stay in¦залишатися вдома
+move into a house¦переїхати в будинок
+What happened to you?¦Що з тобою сталося?
+At the end of the day, I was very tired.¦Наприкінці дня я був дуже втомлений.
+In the end, we decided to go to the park.¦У підсумку ми вирішили піти в парк.
+Comment on¦коментувати щось
+motorway¦шосе`],
+['Гроші й транспорт',`I plan how to allocate my salary¦Я планую, як розподілити мою заробітну плату.
+Main expenses¦головні витрати
+lead to chaos and impunity¦призводити до хаосу та безкарності
+tribes¦племена
+Cross out¦викреслити
+Can't help laughing¦не можу не сміятися
+I can't bear my boss's attitude¦Я не можу терпіти ставлення мого боса.
+I'd like to go to the cinema tonight¦Я хотів би піти в кіно сьогодні ввечері.
+Thank you in advance for your help.¦Заздалегідь дякую за вашу допомогу.
+Nothing beats a good cup of coffee in the morning.¦Нічого не зрівняється з гарною чашкою кави вранці.
+She can do it by herself¦Вона може зробити це сама.
+This song reminds me of my childhood¦Ця пісня нагадує мені про моє дитинство.
+The traffic lights are on red¦Світлофор червоний.
+get out of the car¦виходити з машини
+Park a car¦припаркувати машину
+Get on a bike¦сісти на велосипед
+got stuck in traffic¦застряг у пробці
+Go away¦піти геть; від'їжджати`],
+['Падіння й емоції',`To be honest¦чесно кажучи
+It is not for everyone¦це не для всіх
+She insists on going to the party¦Вона наполягає на тому, щоб піти на вечірку.
+Upset¦засмучений
+incredible¦неймовірний
+conclude¦робити висновок
+Conclusion¦висновок
+at peace with¦у мирі з; змирений з
+Look out¦берегтися; пильнувати; визирати
+Tent¦намет
+Fall over¦перечепитися й упасти
+Fall down¦падати (просто на рівному місці)
+injured¦травмований, поранений
+At midnight¦опівночі
+Fall off¦впасти з (чогось)`],
+['Дім і побут',`Hill¦пагорб
+Stream¦потік, струмок
+forest¦ліс (більший за «wood»)
+Corpses¦трупи
+Throw away¦викинути
+Private house¦приватний будинок
+own a house¦володіти будинком
+Sibling¦рідний брат або сестра
+Relatives¦родичі
+in view of¦зважаючи на; з огляду на
+Above¦над, вище
+I admire your confidence¦Я захоплююся твоєю впевненістю.
+shower¦душ; коротка злива
+Tap¦кран
+Cupboard¦шафа для посуду
+Sink¦раковина, умивальник
+Armchair¦крісло
+Fireplace¦камін; вогнище
+mirror¦дзеркало
+Rug¦килимок
+wardrobe¦шафа для одягу; гардероб
+Rent out¦здавати в оренду
+Landlord¦орендодавець
+Manner¦спосіб, манера
+Dial¦набрати номер
+I slept well last night¦Минулої ночі я добре спав.
+knowledgeable about¦обізнаний у
+Tiny¦крихітний
+The elderly¦люди похилого віку
+Circle¦коло
+Appointment at the dentist¦запис на прийом до стоматолога
+Cash machine¦банкомат
+Large¦великий
+Cozy¦затишний
+These shoes are tight¦Це взуття тісне.`],
+['Прислівники',`The lake is deep¦Озеро глибоке.
+They went deep into the forest¦Вони пішли глибоко в ліс.
+He is deeply in love with her¦Він глибоко закоханий у неї.
+He tried hard in order to succeed¦Він дуже старався, щоб досягти успіху.
+The hotel guests can use the swimming pool free¦Гості готелю можуть користуватися басейном безкоштовно.
+The animals in the safari park can roam freely¦Тварини в сафарі-парку можуть вільно пересуватися.
+The kite flew high in the sky.¦Повітряний змій летів високо в небі.
+He is a highly respected doctor¦Він високо шанований лікар.
+lately¦останнім часом, нещодавно
+the right answer¦правильна відповідь
+Turn right here¦Поверни тут праворуч.
+He was rightly punished¦Його справедливо покарали.
+I was rightly informed.¦Мене правильно поінформували.
+Rightly¦правильно; справедливо
+He'll be here directly¦Він буде тут зовсім скоро.
+A direct train¦прямий потяг
+We're here at last¦Ми нарешті тут.
+I'm jazzed¦Я в захваті (збуджений).
+Let alone¦не кажучи вже про
+comfortable conditions¦комфортні умови
+Injure¦поранити, травмувати`],
+['Особистість',`individual¦індивід; окрема людина
+Personality¦особистість, характер
+Unique¦унікальний
+peer pressure¦тиск з боку однолітків
+Stand out¦виділятися, бути помітним
+Blend in¦зливатися (з натовпом)
+public opinion¦суспільна думка
+to take out the trash¦виносити сміття
+above average¦вище середнього
+in the closet¦у шафі; (ідіом.) приховувати свою орієнтацію
+The fog is thick.¦Туман густий.
+curse¦прокляття; лаятися
+Sail¦плисти під вітрилом
+get out of¦виходити з
+Turn away¦відвертатися`],
+['Неправильні дієслова',`Blow¦дути (blew – blown)
+Burst¦вибухати, лопатися (burst – burst)
+Deal¦мати справу; роздавати (dealt – dealt)
+Dream¦мріяти, снитися (dreamt/dreamed)
+Forgive¦пробачати (forgave – forgiven)
+Freeze¦замерзати (froze – frozen)
+Lay¦класти (laid – laid)
+Lead¦вести, очолювати (led – led)
+Leave¦залишати, покидати (left – left)
+Lie¦лежати (lay – lain)
+Lose¦втрачати (lost – lost)
+Ride¦їздити (rode – ridden)
+Rise¦підніматися (rose – risen)
+Set¦поставити, накрити, налаштувати (set – set)
+Sit¦сидіти (sat – sat)
+Steal¦красти (stole – stolen)
+Stand¦стояти (stood – stood)
+Throw¦кидати (threw – thrown)`],
+['Дієслова 2 (дії й фразові)',`Inspire¦надихати
+Insist¦наполягати
+throw a glance¦кинути погляд
+Eat out¦їсти не вдома
+deceive¦обманювати, вводити в оману
+make an excuse¦вигадувати виправдання, відмовлятися
+go shopping¦ходити за покупками
+break a record¦побити рекорд
+Take a nap¦подрімати
+Tell the truth¦казати правду
+Tell a lie¦брехати
+Show¦показувати
+Go for a walk¦іти на прогулянку
+Rush over¦поспішати, прибігти
+Warm up¦розминатися; розминка
+Prepare for¦готуватися до
+Take up¦починати займатися (чимось новим)
+Top up¦поповнити (рахунок)
+Hang out¦тусуватися, зависати
+Check out¦перевірити; виписатися (з готелю)
+fall out¦посваритися
+run into¦врізатися; випадково зустріти; стикнутися (з проблемами)
+Attack¦атакувати
+Coincide¦збігатися
+Feed¦годувати
+attend classes¦відвідувати уроки (як студент)
+Visit classes¦завітати на заняття (як гість)
+Go to work¦іти на роботу
+Go home¦іти додому
+go swimming¦плавати, ходити на плавання
+Reflect¦відображати; обмірковувати
+develop¦розвивати
+recharge¦відновити сили
+make up¦вигадувати; миритися
+have to do with¦мати відношення до
+To express¦виражати, висловлювати
+step forward¦зробити крок уперед
+notice¦помічати
+Pull myself together¦взяти себе в руки
+keep an eye on¦стежити за, наглядати за
+get rid of something¦позбутися чогось
+Depend on¦залежати від
+Realize¦усвідомлювати
+Follow¦йти слідом; слідувати
+Single out¦виділяти, вирізняти
+Deserve respect¦заслуговувати на повагу
+Encourage¦заохочувати
+undergo¦зазнавати, проходити (underwent)
+Chase¦переслідувати, гнатися
+Speak out¦висловитися, виступити відкрито
+Lead to a rise¦призводити до зростання
+recycle our plastic¦переробляти наш пластик
+To conform to¦підлаштовуватися під
+Consume¦споживати, вживати
+Recognize¦впізнавати
+Estimate¦оцінювати
+Come up¦підходити; виникати
+bring to life¦оживляти`],
+['Емоції й характер',`Scary¦страшний, лячний
+solitary life¦самотнє життя
+Alone¦на самоті, один (нейтрально)
+standoffish¦відсторонений, холодний
+A loner¦самітник, одинак
+loneliness¦самотність
+Antisocial¦нетовариський, асоціальний (уникає людей)
+Introspective¦інтроспективний, заглиблений у себе
+party animal¦тусовщик, любитель вечірок
+Reserved¦стриманий, замкнутий
+Soul of the company¦душа компанії
+People person¦комунікабельна людина
+comfort zone¦зона комфорту
+Silent¦безшумний, мовчазний
+Able to do something¦здатний щось зробити
+capable of great things¦здатний на великі речі
+lonely¦самотній (негативно)
+Unexpressed¦невиражений
+happiness¦щастя
+Expressed¦виражений, висловлений
+gratitude¦вдячність
+Grateful¦вдячний
+Care¦турбота, піклування
+Narrow-minded¦обмежений, вузьколобий
+Imperfection¦недосконалість
+Aware¦обізнаний
+Conscious¦свідомий, при свідомості
+Acceptance¦прийняття
+self-esteem¦самооцінка
+Truly¦по-справжньому
+Pressured¦під тиском
+Pressure¦тиск
+insecure¦невпевнений
+Self worth¦самоповага, самоцінність
+Trauma¦психологічна травма
+Strength¦міцність, сила
+worn out¦зношений; виснажений
+Mental health¦психічне здоров'я
+Intrusive thoughts¦нав'язливі думки
+Be in a bad mood¦бути в поганому настрої`],
+['Зовнішність і краса',`Beauty Standards¦стандарти краси
+aesthetic¦естетичний; естетика
+unattainable¦недосяжний
+superficial¦поверхневий, несерйозний
+Ageless¦нестаріючий, вічний
+Flawless¦бездоганний
+unnatural¦неприродний
+Facial expressions¦вираз обличчя
+Relating to appearance¦що стосується зовнішності
+Body shapes¦форми тіла
+External only¦лише зовнішній
+Constant comparison¦постійне порівняння
+Inner beauty¦внутрішня краса
+not just a pretty face¦не лише гарне личко
+Keep fit¦підтримувати себе у формі`],
+['Суспільство й думки',`Society¦суспільство
+expectation¦очікування
+societal pressure¦тиск суспільства
+Nation¦нація
+homeless¦бездомний
+environment¦навколишнє середовище
+addiction¦залежність
+addict¦залежна людина; залежний
+Divorce¦розлучення
+spouses¦подружжя
+Beings¦істоти
+the bitter truth¦гірка правда
+to cover up the truth¦приховувати правду
+Against¦проти, всупереч
+Against us¦проти нас
+In my view¦на мій погляд
+as far as¦наскільки
+As far as i remember¦наскільки я пам'ятаю`],
+['Слова-зв’язки й есе',`Due to this¦через це
+moreover¦більше того
+Besides¦крім того
+in other words¦іншими словами
+That is to say¦тобто
+this means that¦це означає, що
+similarly¦подібним чином, аналогічно
+In the same way¦так само
+Especially¦особливо
+after that¦після того
+All in all¦загалом
+On the other hand¦з іншого боку
+On the one hand¦з одного боку
+Main body¦основна частина
+Introduction¦вступ
+to sum up¦підсумовуючи
+personally¦особисто
+According to¦згідно з`],
+['Прислівники й вирази',`Extremely¦надзвичайно
+Rather¦скоріше; досить
+out of sight¦поза полем зору; зник з виду
+Well done¦молодець
+Once a week¦раз на тиждень
+May be¦може бути (60–70%)
+Might be¦може бути (30–40%)
+even more¦ще більше
+Overall¦загалом
+as soon as possible¦якнайшвидше
+Constantly¦постійно
+Various¦різноманітний
+Whole/entire/full¦цілий, повний
+Lying down¦лежачи
+Amounts¦кількості`],
+['Одяг і зовнішність',`Trainers¦кросівки
+Cloth¦тканина
+Thinner¦тонший`],
+['Дім і побут',`Underground¦метро (у Лондоні)
+Plate¦тарілка
+scatter¦розкидати, розсіювати
+entertainment¦розваги
+residential complex¦житловий комплекс
+Residence¦місце проживання
+Bench¦лавка
+Diary¦щоденник
+Treats¦смаколики`],
+['Робота й бізнес',`appointment¦зустріч (за домовленістю), запис
+Development¦розвиток
+Career¦кар'єра
+options¦варіанти
+Trainee¦стажер
+Field¦поле; сфера діяльності
+Required¦обов'язковий, вимагається
+Responsible for¦відповідальний за
+Revision¦повторення (матеріалу)
+Mandatory¦обов'язковий
+optional¦необов'язковий
+It costs an arm and a leg¦Це коштує купу грошей (ідіома).
+Good career¦хороша кар'єра`],
+['Люди й спілкування',`Wives¦дружини
+Brazen¦нахабний, безсоромний
+Sense of humour¦почуття гумору
+have a lot of interests¦мати багато інтересів
+A busy social life¦насичене соціальне життя
+Happy family life¦щасливе сімейне життя
+Encouraging¦заохочувальний`],
+['Речення',`They might be studying¦Можливо, вони навчаються.
+I know of Elon Musk¦Я знаю про Ілона Маска.
+He deceived me with his lies.¦Він обманув мене своєю брехнею.
+Try to look better¦Спробуй виглядати краще.
+The flight was delayed due to bad weather.¦Рейс затримали через погану погоду.
+I will fly to Paris next month¦Я полечу до Парижу наступного місяця (спонтанне рішення).
+I'm flying to Paris¦Я лечу до Парижу наступного місяця (квитки вже куплені).
+I'm going to fly to Paris.¦Я збираюся летіти до Парижа (вже вирішив, є план).
+I'm about to leave.¦Я ось-ось піду.
+She's about to cry.¦Вона от-от заплаче.
+Please highlight the important words¦Будь ласка, виділи важливі слова.
+I study hard to pass the exam.¦Я старанно вчуся, щоб скласти іспит.
+I opened the window so that fresh air could come in.¦Я відкрив вікно, щоб зайшло свіже повітря.
+I want you to come.¦Я хочу, щоб ти прийшов.
+The image shows¦Зображення показує
+The woman might read a book¦Жінка, можливо, читає книгу
+A woman seems to be happy¦Жінка здається щасливою
+Talking to new people makes me more outgoing.¦Спілкування з новими людьми робить мене відкритішим.
+I have a lot on my plate¦У мене багато справ.
+Eric picked up a cold after being outside in the rain.¦Ерік підхопив застуду після того, як побував на вулиці під дощем.
+They appear to be having fun.¦Здається, вони розважаються.
+People sitting at the table are bored¦Люди, що сидять за столом, нудьгують.
+The image shows a man cleaning the house¦Зображення показує чоловіка, який прибирає будинок.
+It's too expensive to rent¦Це занадто дорого, щоб орендувати.
+The girl sitting near a window¦Дівчина, що сидить біля вікна.
+I work while my friend doesn't.¦Я працюю, а мій друг — ні.
+She has tried various diets.¦Вона пробувала різні дієти.
+move to a different department¦перейти в інший відділ; змінити сферу діяльності
+I want people to live there¦Я хочу, щоб люди там жили.
+They aren't kind enough¦Вони недостатньо добрі.
+We have enough space for more homes¦У нас достатньо місця для більшої кількості будинків.
+It requires (something) from me¦Це вимагає від мене (чогось).
+I trust him¦Я довіряю йому.
+I have trust in you¦Я маю довіру до тебе.
+Please treat her kindly¦Будь ласка, стався до неї лагідно.
+I can relate to your story.¦Я розумію тебе (мені знайома твоя історія).
+My anger had to do with stress.¦Мій гнів був пов'язаний зі стресом.
+I don't have enough energy¦У мене не вистачає сил.
+I finally got to talk to her.¦Я нарешті мав можливість із нею поговорити.
+What does it depend on?¦Від чого це залежить?
+This is beyond my understanding.¦Це поза моїм розумінням.
+Such behavior is not acceptable.¦Така поведінка неприйнятна.
+They made up after a fight.¦Вони помирилися після сварки.
+He made up an excuse.¦Він вигадав виправдання.
+Beauty is in the eye of the beholder.¦Краса — в очах того, хто дивиться.
+Her facial expressions showed surprise¦Її вираз обличчя виказував здивування.
+It's hard for him to express his feelings.¦Йому важко висловлювати свої почуття.
+I'm tired of this noise.¦Я втомився від цього шуму.
+He stepped forward to take responsibility.¦Він зробив крок уперед, щоб узяти на себе відповідальність.
+expression¦вираз, вислів
+confidence¦впевненість
+She spoke with confidence.¦Вона говорила впевнено.
+His answer was vague and confusing.¦Його відповідь була неясною і заплутаною.
+Vague¦нечіткий, неясний
+You don't have to explain.¦Тобі не потрібно пояснювати.
+Leave it as it is.¦Залиш це як є.
+I don't have to do anything¦Мені нічого не треба робити.
+We left as it was early¦Ми пішли, бо було рано.
+I'm thankful for having a good family.¦Я вдячний, що маю хорошу сім'ю.
+Start working on this¦Почніть працювати над цим.
+He expressed his opinion clearly.¦Він чітко висловив свою думку.
+I'm grateful for your support.¦Я вдячний за твою підтримку.
+Thanks for your time¦Дякую за ваш час.
+I care about you.¦Я піклуюся про тебе.
+She takes care of her grandmother.¦Вона доглядає за бабусею.
+Do you care what they think?¦Тобі важливо, що вони думають?
+The teacher singled out Maria for her excellent project.¦Учитель виділив Марію за її чудовий проєкт.
+They mocked her accent.¦Вони насміхалися з її акценту.
+She has flawless skin.¦У неї бездоганна шкіра.
+His smile looked unnatural.¦Його усмішка виглядала неприродно.
+They don't pay attention to the news.¦Вони не звертають уваги на новини.
+I wasn't aware of the problem.¦Я не знав про проблему.
+She was conscious during the surgery.¦Вона була при свідомості під час операції.
+They are not addicted to their phones.¦Вони не залежні від своїх телефонів.
+Don't judge a book by its cover¦Не суди книгу (людину) за обкладинкою (зовнішністю).
+A tiger is a kind of wild cat¦Тигр — це різновид дикої кішки.
+There are many kinds of tea¦Є багато видів чаю.
+I kind of like this movie¦Мені наче подобається цей фільм.
+She's kind of annoying¦Вона трошки дратує.
+It was kinda funny¦Було якось смішно.
+I think people will only use public transport.¦Я думаю, що люди користуватимуться тільки громадським транспортом.
+It will be fun on my own.¦Мені буде весело наодинці.
+Society often promotes unrealistic beauty standards that make people feel insecure.¦Суспільство часто нав'язує нереалістичні стандарти краси, які змушують людей почуватися невпевнено.
+She felt pressure to conform to society's expectations.¦Вона відчувала тиск підлаштовуватися під очікування суспільства.
+Her Instagram feed has a very clean and modern aesthetic¦Її стрічка в Інстаграмі має дуже чисту й сучасну естетику.
+The media often portrays an unattainable image of perfection¦Медіа часто зображують недосяжний образ досконалості.
+Their friendship was rather superficial, based mostly on looks¦Їхня дружба була досить поверхневою, здебільшого заснованою на зовнішності.
+Your self-worth should not depend on your appearance.¦Твоя самоцінність не повинна залежати від зовнішності.
+The actress has an ageless beauty that never fades¦У акторки краса, яка не старіє.
+To conclude, I feel that a job's salary should reflect how much a person has studied.¦На завершення, я вважаю, що заробітна плата має відповідати тому, скільки людина навчалася.
+She feels a lot of pressure before exams.¦Вона відчуває великий тиск перед іспитами.
+We must protect the environment from pollution.¦Ми повинні захищати навколишнє середовище від забруднення.
+I didn't recognize him in his new haircut.¦Я не впізнав його з новою зачіскою.
+We need to make ourselves happy.¦Нам потрібно зробити себе щасливими.
+We consume too much sugar.¦Ми споживаємо забагато цукру.
+She felt deep sadness after the loss of her dog.¦Вона відчувала глибокий смуток після втрати свого собаки.
+She said that¦Вона сказала, що
+She said to us that¦Вона сказала нам, що
+She told us about¦Вона розповіла нам про
+She talked about¦Вона розмовляла про
+She said it was late¦Вона сказала, що було пізно.
+She talked to her friend for hours.¦Вона розмовляла зі своєю подругою годинами.
+I finally got what I was waiting for¦Я нарешті дочекався того, чого чекав.
+I don't understand what you're talking about¦Я не розумію, про що ти говориш.
+Come on, don't make things up!¦Та ну, не вигадуй!
+How to manage people¦Як керувати людьми.
+That's the man who I work with¦Це той чоловік, з яким я працюю.
+She is such a smart girl¦Вона така розумна дівчина.
+She is so smart¦Вона дуже розумна.`]];
+const EX={"spend money like water": ["He spends money like water as soon as he gets his salary.", "Він розкидається грошима, щойно отримує зарплату."], "run out of money": ["We ran out of money before the end of the month.", "У нас закінчилися гроші ще до кінця місяця."], "be made of money": ["I can't buy it – I'm not made of money.", "Я не можу це купити — я не мільйонер."], "short of money": ["I'm a bit short of money this week.", "Цього тижня мені трохи не вистачає грошей."], "have money on you": ["Do you have any money on you? I forgot my wallet.", "У тебе є з собою гроші? Я забув гаманець."], "raise money": ["They organized a concert to raise money for the army.", "Вони організували концерт, щоб зібрати гроші для армії."], "live in poverty": ["Millions of people still live in poverty.", "Мільйони людей досі живуть у бідності."], "can't afford": ["I can't afford a new car right now.", "Зараз я не можу собі дозволити нову машину."], "nothing has moved forward": ["We've talked for weeks, but nothing has moved forward.", "Ми говоримо вже тижнями, але нічого не зрушило з місця."], "spin my wheels": ["I feel like I'm spinning my wheels at this job.", "Мені здається, що на цій роботі я буксую."], "achievement": ["Finishing the course was a great achievement for him.", "Завершити курс було для нього великим досягненням."], "make a good impression": ["Arrive on time to make a good impression at the interview.", "Приходьте вчасно, щоб справити гарне враження на співбесіді."], "firing people": ["Firing people is the hardest part of being a manager.", "Звільняти людей — найважча частина роботи керівника."], "internally": ["The issue was resolved internally, without involving the client.", "Проблему вирішили внутрішньо, не залучаючи клієнта."], "implement": ["We plan to implement the new system next month.", "Ми плануємо впровадити нову систему наступного місяця."], "empowering for people": ["Giving staff more freedom is empowering for people.", "Надання працівникам більшої свободи розширює їхні можливості."], "external push": ["The project needed an external push to get started.", "Проєкту потрібен був зовнішній поштовх, щоб розпочатися."], "leverage": ["We can leverage our contacts to find new clients.", "Ми можемо використати наші контакти, щоб знайти нових клієнтів."], "fast track": ["She took the fast track to a management position.", "Вона швидким шляхом дійшла до керівної посади."], "sophisticated taste": ["He has sophisticated taste in wine and art.", "Він має вишуканий смак у вині та мистецтві."], "inspiration and imagination": ["Great art needs both inspiration and imagination.", "Велике мистецтво потребує і натхнення, і уяви."], "innovation": ["Innovation keeps the company ahead of its competitors.", "Інновації допомагають компанії випереджати конкурентів."], "exploring the self": ["The book is about exploring the self through travel.", "Книга про пізнання себе через подорожі."], "industrial capacity": ["The country is rebuilding its industrial capacity.", "Країна відновлює свої виробничі потужності."], "creativity": ["Creativity is important in every profession.", "Творчість важлива в будь-якій професії."], "she confessed": ["She confessed that she had broken the vase.", "Вона зізналася, що розбила вазу."], "endurance": ["Marathon running requires great endurance.", "Біг марафону вимагає великої витривалості."], "justify": ["Nothing can justify violence.", "Ніщо не може виправдати насильство."], "unavoidable": ["The delay was unavoidable because of the storm.", "Затримка була неминучою через бурю."], "agreement": ["The two countries signed a trade agreement.", "Дві країни підписали торговельну угоду."], "connect": ["Connect the printer to the Wi-Fi network.", "Під'єднай принтер до мережі Wi-Fi."], "unite": ["The crisis helped to unite the whole country.", "Криза допомогла об'єднати всю країну."], "well-being": ["Regular exercise improves your physical and mental well-being.", "Регулярні вправи покращують фізичне й психічне благополуччя."], "he stinks": ["Open the window – he stinks of smoke.", "Відчини вікно — від нього смердить димом."], "gradually increasing": ["There is a gradually increasing demand for online courses.", "Попит на онлайн-курси поступово зростає."], "plenty of": ["We have plenty of time before the train.", "У нас багато часу до потяга."], "the majority of": ["The majority of students passed the exam.", "Більшість студентів склали іспит."], "any": ["I don't have any questions. / Any of you can join.", "У мене немає жодних запитань. / Будь-хто з вас може приєднатися."], "a lack of": ["A lack of sleep affects concentration.", "Нестача сну впливає на концентрацію."], "a large number of": ["A large number of people attended the meeting.", "Велика кількість людей прийшла на зустріч."], "several": ["I called him several times, but he didn't answer.", "Я телефонував йому кілька разів, але він не відповів."], "a handful of": ["Only a handful of people knew the truth.", "Лише жменька людей знала правду."], "a minority of": ["Only a minority of voters supported the change.", "Лише меншість виборців підтримала зміни."], "a few": ["I have a few friends in Kyiv.", "У мене є кілька друзів у Києві."], "few": ["Few people know about this place.", "Мало хто знає про це місце."], "a good deal of": ["It took a good deal of effort to finish the report.", "Щоб закінчити звіт, знадобилося чимало зусиль."], "a little": ["Add a little sugar to the tea.", "Додай трохи цукру в чай."], "little": ["There is little hope of finding him.", "Майже немає надії знайти його."], "every": ["Every student must bring an ID.", "Кожен студент має принести посвідчення."], "each": ["Each team has its own coach.", "Кожна команда має свого тренера."], "attitude towards us": ["Their attitude towards us changed after the meeting.", "Їхнє ставлення до нас змінилося після зустрічі."], "draw a conclusion": ["It's too early to draw a conclusion.", "Ще зарано робити висновки."], "castle": ["We visited an old castle near Lviv.", "Ми відвідали старий замок поблизу Львова."], "double in size": ["The company doubled in size last year.", "Минулого року компанія збільшилася вдвічі."], "grumpy cat": ["My neighbour's grumpy cat hisses at everyone.", "Буркотливий кіт мого сусіда шипить на всіх."], "wheel": ["The car lost a wheel on the road.", "Автомобіль загубив колесо на дорозі."], "knockdown": ["A knockdown in the first round decided the fight.", "Нокдаун у першому раунді вирішив бій."], "have my blood tested": ["I need to have my blood tested tomorrow.", "Завтра мені треба здати аналіз крові."], "lower my eyes": ["She had to lower her eyes in shame.", "Вона мусила опустити очі від сорому."], "threaten": ["He threatened to call the police.", "Він погрожував викликати поліцію."], "so badly": ["He wanted it so badly that he never gave up.", "Він так сильно цього хотів, що ніколи не здавався."], "right away": ["Call me right away if something happens.", "Зателефонуй мені негайно, якщо щось трапиться."], "weekly": ["We have a weekly meeting on Mondays.", "У нас щотижнева нарада по понеділках."], "goggles": ["Wear goggles when you use the machine.", "Вдягай захисні окуляри, коли працюєш із верстатом."], "lead the way": ["You know the area, so please lead the way.", "Ти знаєш місцевість, тож показуй дорогу."], "quarter of": ["A quarter of the class was absent.", "Чверті класу не було."], "broad shoulders": ["He has broad shoulders from years of swimming.", "У нього широкі плечі після років плавання."], "heavily built": ["The guard was a tall, heavily built man.", "Охоронець був високим чоловіком міцної статури."], "tanned skin": ["Her tanned skin showed she had been on holiday.", "Її засмагла шкіра видавала, що вона була у відпустці."], "unshaven cheeks": ["He came in tired, with unshaven cheeks.", "Він зайшов утомлений, з неголеними щоками."], "baggy trousers": ["He wore baggy trousers and a loose T-shirt.", "Він носив мішкуваті штани й вільну футболку."], "stunning view": ["The room has a stunning view of the mountains.", "З кімнати відкривається приголомшливий вид на гори."], "striped shirt": ["He wore a striped shirt to the interview.", "На співбесіду він одягнув смугасту сорочку."], "checked shirt": ["A checked shirt goes well with jeans.", "Сорочка в клітинку добре пасує до джинсів."], "silk": ["The scarf is made of pure silk.", "Шарф зроблений із чистого шовку."], "linen trousers": ["Linen trousers are perfect for hot weather.", "Лляні штани ідеальні для спекотної погоди."], "leather jacket": ["He bought a black leather jacket last winter.", "Минулої зими він купив чорну шкіряну куртку."], "loose-fitting clothes": ["Loose-fitting clothes are comfortable in summer.", "Вільний одяг зручний улітку."], "fake fur coat": ["She prefers a fake fur coat to a real one.", "Вона надає перевагу шубі зі штучного хутра, а не натуральній."], "bow tie": ["He wore a bow tie to the wedding.", "На весілля він одягнув краватку-метелик."], "ripped": ["He was wearing ripped jeans.", "На ньому були рвані джинси."], "importance of water": ["The teacher spoke about the importance of water for health.", "Вчителька говорила про важливість води для здоров'я."], "out of fashion": ["These shoes went out of fashion years ago.", "Це взуття вийшло з моди багато років тому."], "in fashion": ["Long coats are in fashion again this autumn.", "Довгі пальта знову в моді цієї осені."], "lend": ["Could you lend me ten dollars until Friday?", "Чи не міг би ти позичити мені десять доларів до п'ятниці?"], "elegant": ["She looked elegant in a simple black dress.", "Вона виглядала елегантно в простій чорній сукні."], "he doesn't care": ["He doesn't care what people say about him.", "Йому байдуже, що про нього кажуть."], "gossip": ["I don't like to gossip about colleagues.", "Я не люблю пліткувати про колег."], "cost a fortune": ["That watch must have cost a fortune.", "Той годинник, мабуть, коштував цілий статок."], "prom": ["She wore a blue dress to the prom.", "На випускний вона одягла синю сукню."], "dress up": ["The kids love to dress up for Halloween.", "Діти люблять наряджатися на Гелловін."], "low income": ["Families on a low income get extra support.", "Родини з низьким доходом отримують додаткову підтримку."], "pet": ["The dog loves it when you pet him.", "Пес любить, коли його гладять."], "wavy hair": ["She has long, wavy hair.", "У неї довге хвилясте волосся."], "belt": ["This belt is too tight.", "Цей ремінь надто тісний."], "slippers": ["I always wear slippers at home.", "Удома я завжди ношу капці."], "handbag": ["She forgot her handbag in the taxi.", "Вона забула сумочку в таксі."], "strike up a conversation": ["It's easy to strike up a conversation at a conference.", "На конференції легко зав'язати розмову."], "have a laugh": ["We had a good laugh at the old photos.", "Ми добре посміялися зі старих фотографій."], "make small talk": ["I hate making small talk at parties.", "Я ненавиджу світські балачки на вечірках."], "stay in": ["Let's stay in tonight and watch a film.", "Давай сьогодні залишимося вдома й подивимось фільм."], "move into a house": ["They will move into the new house in May.", "Вони переїдуть у новий будинок у травні."], "comment on": ["The minister refused to comment on the rumours.", "Міністр відмовився коментувати чутки."], "motorway": ["The motorway was closed because of snow.", "Шосе перекрили через сніг."], "main expenses": ["Rent and food are our main expenses.", "Оренда й їжа — наші головні витрати."], "lead to chaos and impunity": ["Weak laws can lead to chaos and impunity.", "Слабкі закони можуть призвести до хаосу та безкарності."], "tribes": ["Several tribes lived in this valley.", "У цій долині жило кілька племен."], "cross out": ["Cross out the wrong answer and write the correct one.", "Викресліть неправильну відповідь і напишіть правильну."], "can't help laughing": ["I can't help laughing when I remember that day.", "Я не можу не сміятися, коли згадую той день."], "get out of the car": ["Everybody, please get out of the car.", "Усі, будь ласка, вийдіть з машини."], "park a car": ["It's hard to park a car in the city centre.", "У центрі міста важко припаркувати машину."], "get on a bike": ["He got on his bike and rode off.", "Він сів на велосипед і поїхав."], "got stuck in traffic": ["I was late because I got stuck in traffic.", "Я запізнився, бо застряг у пробці."], "go away": ["Go away and let me work!", "Іди геть і дай мені працювати!"], "to be honest": ["To be honest, I didn't like the film.", "Чесно кажучи, мені не сподобався фільм."], "it is not for everyone": ["Hiking in winter is not for everyone.", "Зимові походи не для всіх."], "upset": ["She was upset about the news.", "Вона була засмучена цією новиною."], "incredible": ["The view from the top was incredible.", "Вид зверху був неймовірним."], "conclude": ["We concluded that the plan was too risky.", "Ми дійшли висновку, що план надто ризикований."], "conclusion": ["What is your conclusion after the test?", "Який ваш висновок після тесту?"], "at peace with": ["He finally felt at peace with his past.", "Нарешті він відчув мир зі своїм минулим."], "look out": ["Look out! There's a car coming!", "Обережно! Їде машина!"], "tent": ["We put up the tent near the river.", "Ми поставили намет біля річки."], "fall over": ["He tripped and fell over in the street.", "Він перечепився й упав посеред вулиці."], "fall down": ["The old fence is going to fall down.", "Старий паркан скоро впаде."], "injured": ["Two players were injured in the match.", "Двоє гравців отримали травми в матчі."], "at midnight": ["The party ended at midnight.", "Вечірка закінчилася опівночі."], "fall off": ["She fell off her bike and hurt her knee.", "Вона впала з велосипеда й забила коліно."], "hill": ["There is a small church on the hill.", "На пагорбі стоїть невелика церква."], "stream": ["We crossed a narrow stream.", "Ми перейшли вузький струмок."], "forest": ["We walked through the forest for hours.", "Ми годинами йшли лісом."], "corpses": ["The police found two corpses in the river.", "Поліція знайшла в річці два трупи."], "throw away": ["Don't throw away old clothes — donate them.", "Не викидайте старий одяг — віддайте його."], "private house": ["They live in a private house outside the city.", "Вони живуть у приватному будинку за містом."], "own a house": ["It's expensive to own a house in the capital.", "Мати власний будинок у столиці дорого."], "sibling": ["I have no siblings, I'm an only child.", "У мене немає братів і сестер, я єдина дитина."], "relatives": ["All my relatives came to the wedding.", "Усі мої родичі прийшли на весілля."], "in view of": ["In view of the weather, we cancelled the trip.", "З огляду на погоду ми скасували поїздку."], "above": ["The plane flew above the clouds.", "Літак летів над хмарами."], "shower": ["I take a cold shower every morning.", "Щоранку я приймаю холодний душ."], "tap": ["Turn off the tap when you brush your teeth.", "Закривай кран, коли чистиш зуби."], "cupboard": ["The cups are in the cupboard above the sink.", "Чашки в шафці над раковиною."], "sink": ["There are dirty plates in the sink.", "У раковині брудний посуд."], "armchair": ["My grandfather sat in his armchair by the window.", "Мій дідусь сидів у кріслі біля вікна."], "fireplace": ["We sat by the fireplace and drank tea.", "Ми сиділи біля каміна й пили чай."], "mirror": ["She looked at herself in the mirror.", "Вона подивилася на себе в дзеркало."], "rug": ["The cat sleeps on the rug.", "Кіт спить на килимку."], "wardrobe": ["My wardrobe is full of old clothes.", "Моя шафа повна старого одягу."], "rent out": ["They rent out the flat to students.", "Вони здають квартиру в оренду студентам."], "landlord": ["The landlord raised the rent again.", "Орендодавець знову підвищив орендну плату."], "manner": ["He spoke in a calm manner.", "Він говорив у спокійній манері."], "dial": ["Dial 101 in case of fire.", "У разі пожежі набирайте 101."], "knowledgeable about": ["She is knowledgeable about history.", "Вона добре обізнана з історії."], "tiny": ["They live in a tiny flat.", "Вони живуть у крихітній квартирі."], "the elderly": ["The elderly need extra care in winter.", "Люди похилого віку потребують додаткового догляду взимку."], "circle": ["The children sat in a circle.", "Діти сіли в коло."], "appointment at the dentist": ["I have an appointment at the dentist at ten.", "У мене запис до стоматолога о десятій."], "cash machine": ["There is a cash machine near the station.", "Біля вокзалу є банкомат."], "large": ["We ordered a large pizza.", "Ми замовили велику піцу."], "cozy": ["It's a cozy little café.", "Це затишна маленька кав'ярня."], "lately": ["I've been very tired lately.", "Останнім часом я дуже втомлений."], "the right answer": ["Nobody knew the right answer.", "Ніхто не знав правильної відповіді."], "rightly": ["She rightly pointed out the mistake.", "Вона справедливо вказала на помилку."], "a direct train": ["There is a direct train to Kyiv at noon.", "Опівдні є прямий потяг до Києва."], "let alone": ["I can't cook an egg, let alone a whole dinner.", "Я не вмію зварити яйце, не кажучи вже про цілу вечерю."], "comfortable conditions": ["The workers need comfortable conditions.", "Працівникам потрібні комфортні умови."], "injure": ["He injured his leg playing football.", "Він травмував ногу, граючи у футбол."], "individual": ["Every individual has the right to be heard.", "Кожна людина має право бути почутою."], "personality": ["She has a warm personality.", "У неї теплий характер."], "unique": ["Every snowflake is unique.", "Кожна сніжинка унікальна."], "peer pressure": ["Teenagers often give in to peer pressure.", "Підлітки часто піддаються тиску однолітків."], "stand out": ["Her red coat made her stand out in the crowd.", "Її червоне пальто виділяло її в натовпі."], "blend in": ["He tried to blend in with the locals.", "Він намагався злитися з місцевими."], "public opinion": ["Public opinion has changed over the years.", "Суспільна думка змінилася з роками."], "to take out the trash": ["It's my turn to take out the trash.", "Моя черга виносити сміття."], "above average": ["His marks are above average.", "Його оцінки вищі за середні."], "in the closet": ["Your coat is in the closet by the door.", "Твоє пальто в шафі біля дверей."], "curse": ["The villagers believed the house had a curse.", "Селяни вірили, що на будинку лежить прокляття."], "sail": ["We sail across the lake every summer.", "Щоліта ми перепливаємо озеро на яхті."], "get out of": ["Get out of the water, it's cold.", "Виходь з води, там холодно."], "turn away": ["She turned away to hide her tears.", "Вона відвернулася, щоб приховати сльози."], "blow": ["The wind blew the door open.", "Вітер розчахнув двері."], "burst": ["The balloon burst with a loud bang.", "Повітряна кулька лопнула з гучним хлопком."], "deal": ["I have to deal with a difficult client.", "Мені доводиться мати справу зі складним клієнтом."], "dream": ["She dreamed of becoming a pilot.", "Вона мріяла стати пілотом."], "forgive": ["I can't forgive him for lying.", "Я не можу пробачити йому брехню."], "freeze": ["The lake freezes in January.", "Озеро замерзає в січні."], "lay": ["She laid the book on the table.", "Вона поклала книжку на стіл."], "lead": ["He leads a team of ten people.", "Він очолює команду з десяти людей."], "leave": ["We left the house at seven.", "Ми вийшли з дому о сьомій."], "lie": ["The cat lay on the sofa all day.", "Кіт увесь день пролежав на дивані."], "lose": ["I lost my keys yesterday.", "Учора я загубив ключі."], "ride": ["He rode a horse for the first time.", "Він уперше їхав верхи на коні."], "rise": ["The sun rises at six.", "Сонце сходить о шостій."], "set": ["She set the table for dinner.", "Вона накрила стіл до вечері."], "sit": ["We sat in the garden all evening.", "Ми цілий вечір просиділи в саду."], "steal": ["Someone stole my bike last night.", "Минулої ночі хтось украв мій велосипед."], "stand": ["They stood in a long queue.", "Вони стояли в довгій черзі."], "throw": ["He threw the ball over the fence.", "Він кинув м'яч через паркан."], "be careful with money": ["You should be careful with money.", "Тобі слід бути обачним з грошима."], "be in the red": ["I don't want to be in the red again.", "Я не хочу знову бути в боргах."], "inspire": ["Her story inspires many young people.", "Її історія надихає багатьох молодих людей."], "insist": ["I insist on paying for dinner.", "Я наполягаю на тому, щоб заплатити за вечерю."], "throw a glance": ["She threw a glance at the clock.", "Вона кинула погляд на годинник."], "eat out": ["We eat out every Friday.", "Щоп'ятниці ми їмо в ресторані."], "deceive": ["He deceived me with his lies.", "Він обманув мене своєю брехнею."], "make an excuse": ["He always makes an excuse to avoid work.", "Він завжди вигадує відмовки, щоб не працювати."], "go shopping": ["We usually go shopping on Saturdays.", "Зазвичай ми ходимо по магазинах у суботу."], "break a record": ["She broke the world record last year.", "Минулого року вона побила світовий рекорд."], "take a nap": ["I like to take a nap after lunch.", "Я люблю подрімати після обіду."], "tell the truth": ["Always tell the truth, even if it's hard.", "Завжди кажи правду, навіть якщо це важко."], "tell a lie": ["He never tells a lie.", "Він ніколи не бреше."], "show": ["Can you show me the way to the station?", "Чи можете ви показати мені дорогу до вокзалу?"], "go for a walk": ["Let's go for a walk in the park.", "Давай підемо на прогулянку в парк."], "rush over": ["I'll rush over as soon as I can.", "Я прибіжу, щойно зможу."], "warm up": ["Do a warm up before you run.", "Зроби розминку перед бігом."], "prepare for": ["I'm preparing for an important exam.", "Я готуюся до важливого іспиту."], "take up": ["She took up painting last year.", "Минулого року вона почала малювати."], "top up": ["I need to top up my phone.", "Мені треба поповнити рахунок телефона."], "hang out": ["We often hang out after work.", "Ми часто тусуємося після роботи."], "check out": ["We must check out by noon.", "Ми маємо виписатися до полудня."], "fall out": ["They fell out over money.", "Вони посварилися через гроші."], "run into": ["I ran into an old friend yesterday.", "Учора я випадково зустрів старого друга."], "attack": ["The dog attacked the postman.", "Пес напав на листоношу."], "coincide": ["Our holidays coincide this year.", "Цього року наші відпустки збігаються."], "feed": ["Don't forget to feed the cat.", "Не забудь нагодувати кота."], "attend classes": ["Students must attend classes regularly.", "Студенти мають регулярно відвідувати заняття."], "visit classes": ["Parents can visit classes next week.", "Наступного тижня батьки можуть завітати на заняття."], "go to work": ["I go to work by bus.", "Я їжджу на роботу автобусом."], "go home": ["It's late, let's go home.", "Вже пізно, ходімо додому."], "go swimming": ["We go swimming every Sunday.", "Щонеділі ми ходимо на плавання."], "reflect": ["Glass can reflect the light.", "Скло може відбивати світло."], "develop": ["Reading helps to develop imagination.", "Читання допомагає розвивати уяву."], "recharge": ["I need a weekend to recharge.", "Мені потрібні вихідні, щоб відновити сили."], "make up": ["He made up an excuse.", "Він вигадав виправдання."], "have to do with": ["My anger had to do with stress.", "Мій гнів був пов'язаний зі стресом."], "to express": ["It's hard for him to express his feelings.", "Йому важко висловлювати свої почуття."], "step forward": ["He stepped forward to take responsibility.", "Він зробив крок уперед, щоб узяти на себе відповідальність."], "notice": ["I didn't notice the mistake.", "Я не помітив помилки."], "pull myself together": ["I tried to pull myself together before the interview.", "Я намагався взяти себе в руки перед співбесідою."], "keep an eye on": ["Please keep an eye on my bag.", "Будь ласка, наглянь за моєю сумкою."], "get rid of something": ["I want to get rid of this old sofa.", "Я хочу позбутися цього старого дивана."], "depend on": ["It depends on the weather.", "Це залежить від погоди."], "realize": ["I realized that I was wrong.", "Я усвідомив, що помилявся."], "follow": ["Follow me, please.", "Ідіть за мною, будь ласка."], "single out": ["The teacher singled out Maria for her excellent project.", "Учитель виділив Марію за її чудовий проєкт."], "deserve respect": ["Every person deserves respect.", "Кожна людина заслуговує на повагу."], "encourage": ["Parents should encourage their children to read.", "Батьки мають заохочувати дітей до читання."], "undergo": ["He underwent surgery last year.", "Минулого року він переніс операцію."], "chase": ["The dog chased the cat across the yard.", "Пес гнався за котом через двір."], "speak out": ["She decided to speak out against injustice.", "Вона вирішила відкрито виступити проти несправедливості."], "lead to a rise": ["Stress can lead to a rise in blood pressure.", "Стрес може призвести до підвищення тиску."], "recycle our plastic": ["We should recycle our plastic.", "Ми маємо переробляти свій пластик."], "to conform to": ["She felt pressure to conform to society's expectations.", "Вона відчувала тиск підлаштовуватися під очікування суспільства."], "consume": ["We consume too much sugar.", "Ми споживаємо забагато цукру."], "recognize": ["I didn't recognize him in his new haircut.", "Я не впізнав його з новою зачіскою."], "estimate": ["Experts estimate the cost at ten million.", "Експерти оцінюють вартість у десять мільйонів."], "come up": ["A problem has come up at work.", "На роботі виникла проблема."], "bring to life": ["The actor brings the character to life.", "Актор оживляє персонажа."], "scary": ["The film was too scary for the children.", "Фільм був надто страшним для дітей."], "solitary life": ["He chose a solitary life in the mountains.", "Він обрав самотнє життя в горах."], "alone": ["I like to be alone sometimes.", "Іноді я люблю побути на самоті."], "standoffish": ["She seemed standoffish at first.", "Спочатку вона здавалася холодною."], "a loner": ["He's a bit of a loner.", "Він трохи самітник."], "loneliness": ["Loneliness is common among elderly people.", "Самотність поширена серед літніх людей."], "antisocial": ["He's not shy, just antisocial.", "Він не сором'язливий, просто нетовариський."], "introspective": ["She is a quiet, introspective person.", "Вона тиха людина, заглиблена в себе."], "party animal": ["My brother is a real party animal.", "Мій брат — справжній тусовщик."], "reserved": ["He is a shy, reserved man.", "Він сором'язливий, стриманий чоловік."], "soul of the company": ["He is always the soul of the company.", "Він завжди душа компанії."], "people person": ["She's a real people person.", "Вона справжня комунікабельна людина."], "comfort zone": ["Learning a language takes you out of your comfort zone.", "Вивчення мови виводить вас із зони комфорту."], "silent": ["The room was completely silent.", "У кімнаті було повністю тихо."], "able to do something": ["She is able to speak four languages.", "Вона вміє говорити чотирма мовами."], "capable of great things": ["You are capable of great things.", "Ти здатний на великі речі."], "lonely": ["She felt lonely in the new city.", "У новому місті вона почувалася самотньою."], "unexpressed": ["Unexpressed anger can harm your health.", "Невисловлена злість може шкодити здоров'ю."], "happiness": ["Money can't buy happiness.", "За гроші щастя не купиш."], "expressed": ["He expressed his opinion clearly.", "Він чітко висловив свою думку."], "gratitude": ["She showed her gratitude with a small gift.", "Вона виявила вдячність невеликим подарунком."], "grateful": ["I'm grateful for your support.", "Я вдячний за твою підтримку."], "care": ["I care about you.", "Я піклуюся про тебе."], "narrow-minded": ["Don't be so narrow-minded.", "Не будь таким вузьколобим."], "imperfection": ["Learn to accept your imperfections.", "Навчися приймати свої недоліки."], "aware": ["I wasn't aware of the problem.", "Я не знав про проблему."], "conscious": ["She was conscious during the surgery.", "Вона була при свідомості під час операції."], "acceptance": ["Self-acceptance is the first step.", "Самоприйняття — перший крок."], "self-esteem": ["Praise builds a child's self-esteem.", "Похвала підвищує самооцінку дитини."], "truly": ["She truly loves her job.", "Вона по-справжньому любить свою роботу."], "pressured": ["He felt pressured to agree.", "Він відчував тиск погодитися."], "pressure": ["She feels a lot of pressure before exams.", "Вона відчуває великий тиск перед іспитами."], "insecure": ["Society often promotes unrealistic beauty standards that make people feel insecure.", "Суспільство часто нав'язує нереалістичні стандарти краси, які змушують людей почуватися невпевнено."], "self worth": ["Your self-worth should not depend on your appearance.", "Твоя самоцінність не повинна залежати від зовнішності."], "trauma": ["The war left deep trauma in many people.", "Війна залишила глибоку травму в багатьох людей."], "strength": ["Don't underestimate your inner strength.", "Не недооцінюй свою внутрішню силу."], "worn out": ["I'm worn out after the long trip.", "Я виснажений після довгої подорожі."], "mental health": ["Sleep is important for mental health.", "Сон важливий для психічного здоров'я."], "intrusive thoughts": ["Exercise helps with intrusive thoughts.", "Фізичні вправи допомагають проти нав'язливих думок."], "be in a bad mood": ["He tends to be in a bad mood in the morning.", "Зранку він часто буває в поганому настрої."], "beauty standards": ["Beauty standards differ from country to country.", "Стандарти краси різняться від країни до країни."], "aesthetic": ["Her Instagram feed has a very clean and modern aesthetic", "Її стрічка в Інстаграмі має дуже чисту й сучасну естетику."], "unattainable": ["The media often portrays an unattainable image of perfection", "Медіа часто зображують недосяжний образ досконалості."], "superficial": ["Their friendship was rather superficial, based mostly on looks", "Їхня дружба була досить поверхневою, здебільшого заснованою на зовнішності."], "ageless": ["The actress has an ageless beauty that never fades", "У акторки краса, яка не старіє."], "flawless": ["She has flawless skin.", "У неї бездоганна шкіра."], "unnatural": ["His smile looked unnatural.", "Його усмішка виглядала неприродно."], "facial expressions": ["Her facial expressions showed surprise", "Її вираз обличчя виказував здивування."], "relating to appearance": ["This question is relating to appearance.", "Це питання стосується зовнішності."], "body shapes": ["Body shapes are very different.", "Форми тіла дуже різні."], "external only": ["An external only change doesn't solve the problem.", "Лише зовнішня зміна не вирішує проблеми."], "constant comparison": ["Constant comparison with others makes people unhappy.", "Постійне порівняння з іншими робить людей нещасними."], "inner beauty": ["Inner beauty is more important than looks.", "Внутрішня краса важливіша за зовнішність."], "not just a pretty face": ["She's not just a pretty face; she's a scientist.", "Вона не лише гарне личко, а й науковиця."], "keep fit": ["I run every morning to keep fit.", "Я щоранку бігаю, щоб бути у формі."], "society": ["Society is changing very fast.", "Суспільство дуже швидко змінюється."], "expectation": ["The result met our expectations.", "Результат виправдав наші очікування."], "societal pressure": ["Societal pressure can affect self-esteem.", "Тиск суспільства може впливати на самооцінку."], "nation": ["The whole nation was proud of the team.", "Уся нація пишалася командою."], "homeless": ["The city helps homeless people in winter.", "Узимку місто допомагає бездомним."], "environment": ["We must protect the environment from pollution.", "Ми повинні захищати навколишнє середовище від забруднення."], "addiction": ["Phone addiction is a growing problem.", "Залежність від телефона — зростаюча проблема."], "addict": ["He is a coffee addict.", "Він залежний від кави."], "divorce": ["Their divorce was a hard time for the kids.", "Їхнє розлучення було важким часом для дітей."], "spouses": ["Both spouses work full time.", "Обоє з подружжя працюють на повну ставку."], "beings": ["Humans are social beings.", "Люди — соціальні істоти."], "the bitter truth": ["She finally learned the bitter truth.", "Вона нарешті дізналася гірку правду."], "to cover up the truth": ["The company tried to cover up the truth.", "Компанія намагалася приховати правду."], "against": ["I am against this idea.", "Я проти цієї ідеї."], "against us": ["Everyone seems to be against us.", "Здається, усі проти нас."], "in my view": ["In my view, this plan is too risky.", "На мій погляд, цей план надто ризикований."], "as far as": ["As far as I know, the shop is closed.", "Наскільки я знаю, магазин зачинений."], "as far as i remember": ["As far as I remember, he lives in Kyiv.", "Наскільки я пам'ятаю, він живе в Києві."], "due to this": ["Due to this, the match was cancelled.", "Через це матч скасували."], "moreover": ["Moreover, the plan is cheaper.", "Більше того, цей план дешевший."], "besides": ["Besides, it's too late to call.", "Крім того, вже пізно телефонувати."], "in other words": ["In other words, we have no choice.", "Іншими словами, у нас немає вибору."], "that is to say": ["He is a vegetarian, that is to say, he doesn't eat meat.", "Він вегетаріанець, тобто не їсть м'яса."], "this means that": ["This means that we must start earlier.", "Це означає, що ми маємо почати раніше."], "similarly": ["Similarly, the second option has risks.", "Аналогічно, другий варіант має ризики."], "in the same way": ["In the same way, you can learn any language.", "Так само можна вивчити будь-яку мову."], "especially": ["I love fruit, especially apples.", "Я люблю фрукти, особливо яблука."], "after that": ["After that, we went home.", "Після того ми пішли додому."], "all in all": ["All in all, it was a good trip.", "Загалом, це була гарна поїздка."], "on the other hand": ["On the other hand, it's very expensive.", "З іншого боку, це дуже дорого."], "on the one hand": ["On the one hand, I like the job.", "З одного боку, мені подобається робота."], "main body": ["The main body of the essay has three paragraphs.", "Основна частина есе має три абзаци."], "introduction": ["The introduction should be short.", "Вступ має бути коротким."], "to sum up": ["To sum up, the plan is realistic.", "Підсумовуючи, план реалістичний."], "personally": ["Personally, I prefer tea.", "Особисто я віддаю перевагу чаю."], "according to": ["According to the forecast, it will rain.", "Згідно з прогнозом, буде дощ."], "extremely": ["It was extremely cold yesterday.", "Учора було надзвичайно холодно."], "rather": ["It's rather expensive, but worth it.", "Це досить дорого, але того варте."], "out of sight": ["The car quickly went out of sight.", "Автомобіль швидко зник з виду."], "well done": ["Well done! You passed the exam.", "Молодець! Ти склав іспит."], "once a week": ["I call my parents once a week.", "Я телефоную батькам раз на тиждень."], "may be": ["It may be a good idea.", "Це може бути гарна ідея."], "might be": ["He might be at home.", "Він, можливо, вдома."], "even more": ["This book is even more interesting.", "Ця книжка ще цікавіша."], "overall": ["Overall, the trip was a success.", "Загалом, поїздка вдалася."], "as soon as possible": ["Please reply as soon as possible.", "Будь ласка, дайте відповідь якнайшвидше."], "constantly": ["He constantly checks his phone.", "Він постійно перевіряє телефон."], "various": ["She has tried various diets.", "Вона пробувала різні дієти."], "whole/entire/full": ["I ate the whole pizza.", "Я з'їв цілу піцу."], "lying down": ["He was lying down on the sofa.", "Він лежав на дивані."], "amounts": ["Large amounts of sugar are harmful.", "Великі кількості цукру шкідливі."], "trainers": ["I bought new trainers for running.", "Я купив нові кросівки для бігу."], "cloth": ["This cloth is soft and warm.", "Ця тканина м'яка й тепла."], "thinner": ["This jacket is thinner than the old one.", "Ця куртка тонша за стару."], "underground": ["I go to work by underground.", "Я їжджу на роботу метро."], "plate": ["Please put the plate on the table.", "Будь ласка, постав тарілку на стіл."], "scatter": ["The wind scattered the papers.", "Вітер розкидав папери."], "entertainment": ["There is no entertainment in this village.", "У цьому селі немає розваг."], "residential complex": ["They live in a new residential complex.", "Вони живуть у новому житловому комплексі."], "residence": ["Please show proof of residence.", "Будь ласка, покажіть підтвердження місця проживання."], "bench": ["We sat on a bench in the park.", "Ми сиділи на лавці в парку."], "diary": ["She writes in her diary every night.", "Щовечора вона пише в щоденнику."], "treats": ["I bought some treats for the kids.", "Я купив дітям трохи смаколиків."], "appointment": ["I have an appointment with the doctor at five.", "У мене запис до лікаря о п'ятій."], "development": ["The development of the city took ten years.", "Розвиток міста тривав десять років."], "career": ["She built a successful career in law.", "Вона збудувала успішну кар'єру в юриспруденції."], "options": ["We have three options.", "У нас є три варіанти."], "trainee": ["The trainee learns quickly.", "Стажер швидко вчиться."], "field": ["He works in the field of medicine.", "Він працює в галузі медицини."], "required": ["A passport is required.", "Потрібен паспорт."], "responsible for": ["Who is responsible for this project?", "Хто відповідає за цей проєкт?"], "revision": ["I'm doing revision for the exam.", "Я повторюю матеріал до іспиту."], "mandatory": ["Attendance is mandatory.", "Присутність обов'язкова."], "optional": ["The course is optional.", "Курс необов'язковий."], "good career": ["He has a good career in banking.", "Він має хорошу кар'єру в банку."], "wives": ["The two men met their wives at university.", "Двоє чоловіків познайомилися зі своїми дружинами в університеті."], "brazen": ["He told a brazen lie to the police.", "Він нахабно збрехав поліції."], "sense of humour": ["She has a great sense of humour.", "У неї чудове почуття гумору."], "have a lot of interests": ["He has a lot of interests.", "У нього багато інтересів."], "a busy social life": ["She has a busy social life.", "У неї насичене соціальне життя."], "happy family life": ["They enjoy a happy family life.", "Вони живуть щасливим сімейним життям."], "encouraging": ["The teacher gave me an encouraging smile.", "Учителька дарувала мені підбадьорливу усмішку."], "expression": ["A smile is a universal expression of joy.", "Усмішка — універсальний вираз радості."], "confidence": ["She spoke with confidence.", "Вона говорила впевнено."], "vague": ["His answer was vague and confusing.", "Його відповідь була неясною і заплутаною."]};
+const FIX={"Ми збираємося уходити": "Ми збираємося йти", "не можу позволити собі": "не можу дозволити собі", "Старайся не пропускати тренування.": "Намагайся не пропускати тренування.", "В мене є два хоббі, а саме читання та біг": "В мене є два хобі, а саме читання та біг"};
+const RN={"slipers": "Slippers", "simbling": "Sibling", "reletives": "Relatives", "test my blood": "have my blood tested", "drop my eyes": "lower my eyes", "in peace with my family": "at peace with", "in view of something": "in view of", "to pet her": "pet", "lead to chaos and unpunished": "lead to chaos and impunity", "slept well last night": "I slept well last night", "the traffic lights is on red": "The traffic lights are on red", "can't bear my boss' attitude": "I can't bear my boss's attitude", "left his sight": "out of sight", "scaring": "Scary", "throw a look": "throw a glance", "to go shopping": "go shopping", "broke a record": "break a record", "i have a lot of my plate": "I have a lot on my plate", "to run into something/someone": "run into", "go to a different part of work": "move to a different department", "party anymal": "party animal", "repower": "recharge", "have to do": "have to do with", "underwent": "undergo", "to sum-up": "to sum up", "adiction": "addiction", "devorse": "Divorce", "i finally wait for it": "I finally got what I was waiting for", "optinal": "optional", "brings to life": "bring to life", "i don't have enough power": "I don't have enough energy", "talking to new people makes me more forward.": "Talking to new people makes me more outgoing.", "i don't understand what you talking about": "I don't understand what you're talking about", "they appear to be having ...": "They appear to be having fun.", "to make up": "make up", "to conform to": "To conform to", "i know of elon musk": "I know of Elon Musk", "external only": "External only"};
+const RN2={"careful with money":"be careful with money","in the red":"be in the red"};
+const fillEx=()=>{let n=0;const SK={};SEED.forEach(([s,x])=>x.split('\n').forEach(l=>{const[e,u]=l.split('¦');SK[e.toLowerCase().trim()]=u}));
+ const norm=S.fx!==3,rn2=!S.fy;S.cards.forEach(c=>{if(FIX[c.uk]){c.uk=FIX[c.uk];n++}
+  if(norm){const r=RN[(c.en||'').toLowerCase().trim()];if(r){c.en=r;n++}const u=SK[(c.en||'').toLowerCase().trim()];if(u&&c.uk!==u&&!c.ued){c.uk=u;n++}}
+  if(rn2){const r=RN2[(c.en||'').toLowerCase().trim()];if(r){c.en=r;const x=EX[r.toLowerCase()];if(x){c.ex=x[0];c.exu=x[1]}n++}}
+  const e=EX[(c.en||'').toLowerCase().trim()];if(e){if(!c.ex){c.ex=e[0];n++}if(!c.exu&&c.ex===e[0]){c.exu=e[1];n++}}});
+ if(rn2){S.fy=1;n++}
+ if(norm){S.fx=3;n++}if(n)save();return n};
+const spx=id=>{const c=S.cards.find(x=>x.id===id);if(c&&c.ex)speak(c.ex)};
+const exH=c=>c.ex?`<div class="mt" style="font-weight:500;font-size:15px;margin-top:8px"><i>${esc(c.ex)}</i> <span style="cursor:pointer" onclick="event.stopPropagation();spx('${c.id}')">🔊</span>${c.exu?`<br>${esc(c.exu)}`:''}</div>`:'';
+const mk=c=>{if(!c.ex)return null;const R=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');let m=c.ex.match(new RegExp('\\b'+R(c.en)+'\\b','i'));
+  if(!m){const w=c.en.split(/\s+/).map(x=>x.replace(/\W/g,'')).filter(x=>x.length>=3).sort((a,b)=>b.length-a.length)[0];if(!w)return null;m=c.ex.match(new RegExp('\\b'+w.slice(0,Math.min(w.length,Math.max(4,w.length-2)))+'\\w*','i'))}
+  return m?{q:c.ex.replace(m[0],'____'),a:m[0]}:null};
+const CAT={"Дієслова 1 (неправильні)": "blow|burst|deal|dream|forgive|freeze|lay|lead|leave|lie|lose|ride|rise|set|sit|steal|stand|throw", "Дієслова 2 (дії й фразові)": "threaten|justify|connect|unite|conclude|injure|lend|dress up|stay in|strike up a conversation|comment on|cross out|throw away|look out|fall over|fall down|fall off|rent out|dial|stand out|blend in|turn away|get out of|go away|pet|gossip|raise money|make small talk|have a laugh|move into a house|own a house|have my blood tested|lower my eyes|lead the way|draw a conclusion|make a good impression", "Одяг і зовнішність": "baggy trousers|striped shirt|checked shirt|silk|linen trousers|leather jacket|loose-fitting clothes|fake fur coat|bow tie|ripped|out of fashion|in fashion|belt|slippers|handbag|goggles|wardrobe|prom|elegant|broad shoulders|heavily built|tanned skin|unshaven cheeks|wavy hair", "Гроші": "spend money like water|run out of money|be made of money|short of money|have money on you|be careful with money|be in the red|live in poverty|can't afford|main expenses|low income|cost a fortune|cash machine", "Робота й бізнес": "firing people|internally|implement|leverage|empowering for people|external push|fast track|emotional toll|agreement|innovation|industrial capacity|achievement|nothing has moved forward|spin my wheels|lead to chaos and impunity", "Емоції й характер": "upset|incredible|grumpy cat|personality|unique|individual|peer pressure|public opinion|endurance|creativity|inspiration and imagination|exploring the self|well-being|curse|at peace with|he doesn't care|he stinks|she confessed|sophisticated taste|can't help laughing|knowledgeable about|manner", "Дім і побут": "cupboard|sink|armchair|fireplace|mirror|rug|tap|shower|private house|landlord|cozy|in the closet", "Люди й спілкування": "sibling|relatives|the elderly|attitude towards us|tribes|injured|corpses|appointment at the dentist", "Місця й природа": "hill|stream|forest|castle|tent|stunning view", "Транспорт": "park a car|get out of the car|get on a bike|got stuck in traffic|a direct train|motorway|sail|wheel", "Кількість і міра": "gradually increasing|plenty of|the majority of|any|a lack of|a large number of|several|a handful of|a minority of|a few|few|a good deal of|a little|little|every|each|quarter of|double in size|weekly|large|tiny|above|above average|circle", "Різне":"knockdown|importance of water","Прислівники й вирази": "so badly|right away|rightly|lately|let alone|to be honest|at midnight|in view of|the right answer|conclusion|comfortable conditions|unavoidable"};
+const catAll=q=>{const M={};for(const k in CAT)CAT[k].split('|').forEach(w=>M[w]=k);let n=0;
+  S.cards.forEach(c=>{const e=(c.en||'').toLowerCase().trim();const t=M[e]||((e.split(/\s+/).length>=5||/[.?!]$/.test(e)||(e.split(/\s+/).length>=3&&/^(i|i'm|i'll|he|he'll|she|we|we're|they|there|the|this|it|you|turn)\s/i.test(e)))?'Речення':null);if(t&&c.set!==t){if(!c.src)c.src=c.set;c.set=t;n++}});
+  S.cat=1;save();if(!q){alert(`Розподілено карток: ${n}. Набори дивіться у вкладці «Набори».`);render()}};
+const catUndo=()=>{if(!confirm('Повернути всі картки до початкових наборів?'))return;let n=0;S.cards.forEach(c=>{if(c.src){c.set=c.src;delete c.src;n++}});S.cat=0;save();alert(`Повернуто: ${n}`);render()};
+const mvAll=()=>{const n=prompt(`Перемістити ${DL.length} знайдених слів у набір (категорію):`,fs||'');if(!n||!n.trim())return;DL.forEach(c=>{if(!c.src)c.src=c.set;c.set=n.trim()});save();render()};
+let DL=[];
+function seed(){const have=new Set(S.cards.map(c=>c.en.toLowerCase()+'|'+c.uk.toLowerCase()));let n=0;
+  for(const [set,txt] of SEED)for(const l of txt.split('\n')){const [en,uk]=l.split('¦');const k=en.toLowerCase()+'|'+uk.toLowerCase();if(have.has(k))continue;have.add(k);n++;S.cards.push({id:uid(),en,uk,set,reps:0,lapses:0,fav:0,h:[],created:Date.now()})}
+  fillEx();if(S.cat)catAll(1);save();alert(n?`Додано слів: ${n}`:'Усі ці слова вже є в базі.');view='home';render()}
+function bk(){const b=new Blob([JSON.stringify(S)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='slovnyk-'+dk()+'.json';a.click()}
+async function rs(f){try{const d=JSON.parse(await f.text());if(!Array.isArray(d.cards))throw 0;if(confirm(`Замінити поточну базу? У файлі ${d.cards.length} слів.`)){S=Object.assign(S,d);save();render()}}catch(e){alert('Файл не схожий на резервну копію.')}}
+/* ---- Vocabulary Practice: окремий модуль, SRS карток не змінюється; дані в S.vps та c.vp (є в резервних копіях) ---- */
+S.vps=S.vps||{sent:0};
+const VT={sent:'Власні речення',ctx:'Контекст',spk:'Вимова',conv:'Розмова'};
+const VP={t:null,c:null,a:0,txt:'',rr:'',o:null,cv:null};
+const vNote=(c,t)=>c.vp&&c.vp[t];
+const vSpk=s=>`speak(${JSON.stringify(s).replace(/"/g,'&quot;')})`;
+const vHas=(c,t)=>{const l=t.toLowerCase(),W=c.en.toLowerCase().split(/[\s\/,]+/).filter(w=>w.length>2);const Q=W.length?W:[c.en.toLowerCase()],f=w=>l.includes(w.length>4?w.slice(0,w.length-2):w);return isSen(c)?Q.filter(f).length>=Q.length/2:Q.every(f)};
+function vW(t,not){const L=S.cards.filter(c=>(!not||!not.includes(c.id))&&(t!=='ctx'||(c.ex&&mk(c))));if(!L.length)return null;
+  const w=L.map(c=>{const o=vNote(c,t);return o?Math.max(.3,5-o.a)+Math.min(2,(Date.now()-o.t)/DAY*.2):4.5});
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<L.length;i++){r-=w[i];if(r<=0)return L[i]}return L[0]}
+function vRate(c,t,g){c.vp=c.vp||{};const o=c.vp[t]||{n:0,a:g};o.a=o.n?o.a*.6+g*.4:g;o.n++;o.l=g;o.t=Date.now();c.vp[t]=o;save()}
+function vGo(t,not){const c=vW(t,not);if(!c&&VP.sess){vNext();return}if(!c){alert(t==='ctx'?'Для цієї вправи потрібні слова з прикладами речень. Додайте приклад до слова (поле «Додати/змінити IPA та приклад») або імпортуйте приклади.':'У базі немає слів.');VP.t=null;render();return}
+  Object.assign(VP,{t,c,a:0,txt:'',rr:'',o:null,cv:null});if(t==='ctx')vBuildCtx();if(t==='conv')vBuildConv();if(t==='think')VP.th=shuf(VTH)[0];VP.ok=0;VP.fb='';render()}
+function vFin(g){const last=VP.c.id;if(VP.sess)(VP.sess.res=VP.sess.res||[]).push({t:VP.t,w:VP.c.en,g});if(VP.t==='conv'){VP.cv.used.forEach(id=>{const c=S.cards.find(x=>x.id===id);if(c)vRate(c,'conv',g)})}else vRate(VP.c,VP.t,g);VP.sess?vNext():vGo(VP.t,[last])}
+function vEdit(){const c=VP.c;c.ipa=$('#vi').value.trim();c.ex=$('#ve').value.trim();c.exu=$('#vu').value.trim();save();if(VP.t==='ctx')vBuildCtx();render()}
+function vWord(c,hide){return`<div class="card"><div class="q" style="margin:0">${esc(c.en)} <button class="sec" style="padding:6px 10px" onclick="${vSpk(c.en)}">♪</button></div><div class="mt" style="font-size:17px">${esc(c.uk)}${c.ipa?` · <b>${esc(c.ipa)}</b>`:''}</div>${hide?'':exH(c)}
+<details style="margin-top:10px"><summary class="mt">Додати/змінити IPA та приклад</summary><input id="vi" placeholder="IPA, напр. /ˈstʌbərn/" value="${esc(c.ipa||'')}" style="margin-top:8px"><input id="ve" placeholder="Приклад речення (англ.)" value="${esc(c.ex||'')}" style="margin-top:8px"><input id="vu" placeholder="Переклад прикладу" value="${esc(c.exu||'')}" style="margin-top:8px"><button class="sec" style="width:100%;margin-top:8px" onclick="vEdit()">Зберегти</button></details></div>`}
+const vRateUI=()=>`<div class="card"><b>Наскільки добре ви засвоїли це слово у цій вправі?</b><div class="grid" style="margin-top:10px">${[[1,'Складно'],[2,'Так собі'],[3,'Добре'],[4,'Легко']].map(([g,l])=>`<button class="sec" onclick="vFin(${g})">${l}</button>`).join('')}</div><div class="mt" style="margin-top:8px">Оцінка визначає, як часто слово повертатиметься в цій вправі. Інтервальні картки вона не змінює.</div></div>`;
+function vMenu(){const C=S.cards,P=C.filter(c=>c.vp),hard=C.filter(c=>vNote(c,'spk')&&vNote(c,'spk').a<=2.5),need=C.filter(c=>c.vp&&Object.values(c.vp).some(o=>o.a<=2.5));
+  const ls=a=>a.length?a.slice(0,15).map(c=>esc(c.en)).join(', ')+(a.length>15?'…':''):'—';
+  return`<h1>Vocabulary Practice</h1><div class="mt">Вправи беруть слова з вашої бази. Прогрес окремий від карток і не позначає слово «вивченим».</div>
+  <div class="grid" style="margin-top:12px">${[['sent','Create your own sentence'],['ctx','Choose the correct context'],['spk','Speaking practice'],['conv','Use it in conversation'],['rec','Згадати англійською'],['lis','Listening: диктант'],['think','Thinking in English']].map(([t,l])=>`<button class="sec" onclick="vGo('${t}')">${l}</button>`).join('')}</div>
+  <details class="card" style="margin-top:12px"><summary><b>AI (необов'язково)</b></summary><div class="mt" style="margin:8px 0">URL вашого Cloudflare Worker і пароль (див. README). Без цього AI-функції вимкнені.</div><input id="ai1" placeholder="https://....workers.dev" value="${esc(S.aiUrl||'')}"><input id="ai2" placeholder="Пароль" value="${esc(S.aiTok||'')}" style="margin-top:8px"><button class="sec" style="width:100%;margin-top:8px" onclick="S.aiUrl=$('#ai1').value.trim();S.aiTok=$('#ai2').value.trim();save();alert('Збережено')">Зберегти</button></details><h2>Статистика</h2><div class="grid"><div class="card stat"><b>${P.length}</b><span>Слів опрацьовано</span></div><div class="card stat"><b>${S.vps.sent}</b><span>Власних речень</span></div><div class="card stat"><b>${C.filter(c=>vNote(c,'conv')).length}</b><span>Слів у розмовах</span></div><div class="card stat"><b>${need.length}</b><span>Потребують повторення</span></div></div>
+  <div class="card"><div class="mt">За типами вправ</div>${Object.keys(VT).map(t=>`<div class="row sp"><span>${VT[t]}</span><b>${C.filter(c=>vNote(c,t)).length} слів</b></div>`).join('')}<div class="mt" style="margin-top:10px">Складно вимовляти:</div>${ls(hard)}<div class="mt" style="margin-top:10px">Потребують повторення:</div>${ls(need)}</div>`}
+function vVP(){if(!S.cards.length)return'<h1>Vocabulary Practice</h1><div class="card"><p>Спочатку додайте слова на вкладці «Головна» або «Імпорт».</p></div>';
+  if(!VP.t)return vMenu();
+  const T={sent:'Create your own sentence',ctx:'Choose the correct context',spk:'Speaking practice',conv:'Use it in conversation',rec:'Згадайте англійською',lis:'Listening: диктант',think:'Thinking in English',sum:'Заняття завершено'}[VP.t];
+  return`<h1>${T}</h1>`+vProg()+({sent:vS1,ctx:vS2,spk:vS3,conv:vS4,rec:vS5,lis:vS6,think:vS7,sum:vSum})[VP.t]()+`<button class="sec" style="width:100%;margin-top:10px" onclick="VP.sess=null;VP.t=null;try{speechSynthesis.cancel()}catch(e){}render()">← До Vocabulary Practice</button>`}
+/* 1: власне речення (локально лише базові перевірки форми) */
+function vS1(){const c=VP.c;return vWord(c,1)+`<div class="card">${isSen(c)?`<b>Це готове речення. Складіть власне схоже: змініть людей і ситуацію, але збережіть конструкцію.</b><div class="mt" style="margin-top:6px">«${esc(c.en)}»</div>`:`<b>Складіть власне речення зі словом «${esc(c.en)}»</b>`}<textarea id="vs" style="min-height:90px;margin-top:8px" placeholder="Write your sentence in English…" ${VP.a?'readonly':''}>${esc(VP.txt)}</textarea><div class="row" style="margin-top:8px"><button class="sec" onclick="speak($('#vs').value)">🔊 Озвучити</button>${VP.a?'':'<button class="big" onclick="vCheck()">Перевірити</button>'}</div></div>`+(VP.a?VP.res+(S.aiUrl?vAIbox:'')+vRateUI():'')}
+function vCheck(){const c=VP.c,t=$('#vs').value.trim();if(!t){alert('Введіть речення.');return}
+  const ck=[isSen(c)?[t.toLowerCase().replace(/[^a-z ]/g,'')!==c.en.toLowerCase().replace(/[^a-z ]/g,''),'Це не копія оригіналу']:[vHas(c,t),`Містить «${c.en}»`],[t.split(/\s+/).length>=4,'Щонайменше 4 слова'],[/^[A-Z"“]/.test(t),'Починається з великої літери'],[/[.!?]["”]?$/.test(t),'Закінчується розділовим знаком'],[!/(^|[^A-Za-z'])i([^A-Za-z']|$)/.test(t),'Займенник I — з великої літери']];
+  S.vps.sent++;save();VP.a=1;VP.txt=t;
+  VP.res=`<div class="card"><b>Базова перевірка форми</b>${ck.map(([ok,l])=>`<div class="fb ${ok?'g':'n'}" style="font-weight:500;margin:6px 0">${ok?'✓':'✗'} ${esc(l)}</div>`).join('')}${c.ex?`<div class="mt" style="margin-top:8px">Приклад для порівняння:</div>${exH(c)}`:''}<div class="mt" style="margin-top:10px">Граматичне виправлення, пояснення помилок і «природніший варіант» потребують AI. Тут AI не підключено, і я його не імітую: порівняйте своє речення з прикладом вище.</div></div>`;render()}
+/* 2: правильний контекст */
+function vBuildCtx(){const c=VP.c,D=shuf(S.cards.filter(x=>x.id!==c.id&&x.ex&&mk(x))).slice(0,3).map(x=>mk(x).q.replace('____',c.en));VP.a=0;VP.o=D.length>=2?shuf([{s:c.ex,ok:1},...D.map(s=>({s}))]):null}
+function vOpt(i){VP.o[i].p=1;VP.right=!!VP.o[i].ok;VP.a=1;render()}
+function vS2(){const c=VP.c,o=VP.o;let h=vWord(c,1);if(!o)return h+'<div class="card">Замало інших слів із прикладами для створення варіантів. Додайте приклади до слів.</div>';
+  h+=`<div class="card"><b>У якому реченні «${esc(c.en)}» вжито правильно?</b><div style="margin-top:10px">${o.map((x,i)=>`<button class="opt ${VP.a?(x.ok?'r':(x.p?'w':'')):''}" ${VP.a?'disabled':''} onclick="vOpt(${i})">${esc(x.s)}</button>`).join('')}</div></div>`;
+  if(VP.a)h+=`<div class="card"><div class="fb ${VP.right?'g':'n'}">${VP.right?'Правильно!':'Не зовсім.'}</div><p><b>${esc(c.en)}</b> — ${esc(c.uk)}</p>${exH(c)}<p class="mt">Неправильні варіанти автоматично зібрані з прикладів інших слів, у які підставлено «${esc(c.en)}»: вони навмисно звучать неприродно або змінюють значення.</p></div>`+vRateUI();return h}
+/* 3: говоріння (Speech Recognition, не фонетичний аналіз) */
+function vS3(){const c=VP.c;return vWord(c,1)+`<div class="card"><b>Вимовте вголос: «${esc(c.en)}»</b><div class="row" style="margin-top:10px"><button class="sec" onclick="${vSpk(c.en)}">🔊 Еталон</button><button class="big" onclick="vRec()">🎤 Запис</button></div><button class="sec" id="vmb" style="width:100%;margin-top:8px" onclick="vMic()">🎙 Записати й послухати себе</button><div id="vr" class="mt" style="margin-top:10px">${VP.rr}</div><div class="mt" style="margin-top:12px">Якщо «Запис» не працює: продиктуйте фразу через 🎤 на клавіатурі телефону в це поле.</div><input id="vd" placeholder="Що ви сказали…" style="margin-top:6px" autocapitalize="off"><button class="sec" style="width:100%;margin-top:8px" onclick="vDict()">Порівняти</button><button class="sec" style="width:100%;margin-top:10px" onclick="VP.a=1;render()">Вимовив(ла) без запису</button></div>`+(VP.a?vRateUI():'')}
+function vRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition,o=$('#vr'),alt=' Скористайтесь кнопкою «Записати й послухати себе».';
+  if(navigator.standalone){o.textContent='У режимі іконки на екрані iPhone не підтримує розпізнавання мовлення. Відкрийте сайт у Safari.'+alt;return}
+  if(!R){o.textContent='Цей браузер не підтримує розпізнавання мовлення (спробуйте Safari або Chrome).'+alt;return}
+  let r,ok=0,tm;try{r=new R()}catch(e){o.textContent='Не вдалося запустити розпізнавання ('+e.message+').'+alt;return}
+  r.lang='en-US';r.maxAlternatives=3;o.textContent='Запускаю мікрофон…';
+  tm=setTimeout(()=>{if(!ok)o.textContent='Розпізнавання не запустилося. Перевірте на iPhone: Налаштування → Загальні → Клавіатура → Диктування (увімкнути); Siri та Пошук → Siri (увімкнути); Налаштування → Safari → Мікрофон.'+alt},4000);
+  r.onstart=()=>{ok=1;o.textContent='Слухаю… говоріть'};
+  r.onresult=e=>{ok=1;clearTimeout(tm);const al=[...e.results[0]].map(x=>x.transcript),N=s=>s.toLowerCase().replace(/[^a-z' ]/g,' ').split(/\s+/).filter(Boolean),T=N(VP.c.en);let best=-1,H=[];al.forEach(a=>{const h=N(a),m=T.filter(w=>h.includes(w)).length;if(m>best){best=m;H=h}});
+    VP.rr=`Розпізнано: <b>${esc(al[0])}</b><br>Оригінал: ${T.map(w=>`<span style="color:var(--${H.includes(w)?'ok':'bad'});font-weight:700">${esc(w)}</span>`).join(' ')}<br>Збіг слів: ${Math.round(best/T.length*100)}%<div style="margin-top:6px">Це розпізнавання мовлення, а не фонетичний аналіз: воно показує, чи система зрозуміла слова, але не оцінює окремі звуки. Можна повторити спробу.</div>`;VP.a=1;render()};
+  r.onerror=e=>{ok=1;clearTimeout(tm);o.textContent=({'not-allowed':'Немає доступу до мікрофона або розпізнавання. Дозвольте у Налаштування → Safari → Мікрофон.','service-not-allowed':'Диктування вимкнене: Налаштування → Загальні → Клавіатура → Диктування.','no-speech':'Мовлення не почуто. Спробуйте ще раз ближче до мікрофона.','audio-capture':'Мікрофон не знайдено.','network':'Немає зв’язку: розпізнавання мовлення на iPhone потребує інтернету.'})[e.error]||('Помилка розпізнавання: '+e.error+'.'+alt)};
+  r.onend=()=>{clearTimeout(tm);if(o.textContent.startsWith('Слухаю'))o.textContent='Нічого не розпізнано. Спробуйте ще раз.'};
+  try{r.start()}catch(e){o.textContent='Не вдалося почати запис ('+e.message+').'+alt}}
+let vMR=null,vCh=[];
+async function vMic(){const o=$('#vr'),b=$('#vmb');if(vMR&&vMR.state==='recording'){vMR.stop();return}
+  try{const st=await navigator.mediaDevices.getUserMedia({audio:true});vMR=new MediaRecorder(st);vCh=[];vMR.ondataavailable=e=>vCh.push(e.data);
+    vMR.onstop=()=>{st.getTracks().forEach(t=>t.stop());const u=URL.createObjectURL(new Blob(vCh,{type:vMR.mimeType||'audio/mp4'}));b.textContent='🎙 Записати ще раз';o.innerHTML='Ваш запис: <audio controls src="'+u+'" style="width:100%;margin-top:6px"></audio><div style="margin-top:6px">Порівняйте на слух з еталоном. Це самооцінка, а не автоматичний аналіз.</div>'};
+    vMR.start();b.textContent='⏹ Зупинити запис';o.textContent='Іде запис…'}
+  catch(e){o.textContent='Не вдалося отримати мікрофон ('+(e.name||e)+'). Дозвольте доступ: Налаштування → Safari → Мікрофон.'}}
+function vDict(){const t=$('#vd').value.trim();if(!t){alert('Спочатку продиктуйте або введіть фразу.');return}const N=s=>s.toLowerCase().replace(/[^a-z' ]/g,' ').split(/\s+/).filter(Boolean),T=N(VP.c.en),H=N(t),m=T.filter(w=>H.includes(w)).length;
+  VP.rr=`Ви сказали: <b>${esc(t)}</b><br>Оригінал: ${T.map(w=>`<span style="color:var(--${H.includes(w)?'ok':'bad'});font-weight:700">${esc(w)}</span>`).join(' ')}<br>Збіг слів: ${Math.round(m/T.length*100)}%<div style="margin-top:6px">Це порівняння тексту диктування, а не фонетичний аналіз вимови.</div>`;VP.a=1;render()}
+/* 4: розмова (сценарій на ваших словах; це не AI) */
+const VQ=[w=>`Do you know anyone or anything that is “${w}”? Tell me about it.`,w=>`When was the last time you needed to use “${w}”? What happened?`,w=>`How would you explain “${w}” to a friend? Use it in your answer.`,w=>`Can you describe a situation from your life where “${w}” fits?`];
+function vBuildConv(){const a=[VP.c];for(let k=0;k<2;k++){const x=vW('conv',a.map(y=>y.id));if(x)a.push(x)}VP.cv={w:a,i:0,log:[],used:[],hint:0,qs:shuf(VQ).slice(0,a.length).map((f,i)=>isSen(a[i])?(x=>'Here is a useful sentence: “'+x+'”. Tell me about a similar situation from your own life.'):f)}}
+function vHint(){VP.cv.hint=1;render()}
+function vSay(){const v=VP.cv,w=v.w[v.i],t=$('#vs').value.trim();if(!t){alert('Введіть відповідь.');return}
+  const ok=vHas(w,t);v.log.push({t:v.aiq||v.qs[v.i](w.en)},{me:1,t,ok,f:ok?'Слово вжито ✓':`Слово «${w.en}» не вжито, але розмова триває`});if(ok&&!v.used.includes(w.id))v.used.push(w.id);v.i++;v.hint=0;v.aiq=null;if(S.aiUrl&&v.i<v.w.length)vAIq();else render()}
+function vS4(){const v=VP.cv,w=v.w[v.i];let h='<div class="mt">Перше запитання сценарне; далі відповідає AI, якщо його підключено в меню Practice, інакше тривають сценарні запитання. Без AI співрозмовник він не оцінює зміст відповіді, а лише перевіряє, чи ви вжили слово.</div>';
+  v.log.forEach(m=>h+=`<div class="card" style="${m.me?'margin-left:24px':'margin-right:24px'}"><div class="mt">${m.me?'Ви':'Співрозмовник'}</div>${esc(m.t)}${m.f?`<div class="fb ${m.ok?'g':'n'}" style="font-weight:500">${esc(m.f)}</div>`:''}</div>`);
+  if(v.i>=v.w.length)return h+(S.aiUrl?'<div class="card"><button class="sec" style="width:100%" onclick="vConvFB()">Розбір моїх відповідей (AI)</button><div id="vai" style="margin-top:10px"></div></div>':'')+vRateUI();const q=v.pend?'Співрозмовник думає…':(v.aiq||v.qs[v.i](w.en));
+  return h+`<div class="card"><div class="mt">Співрозмовник · ${esc(w.uk)}</div><div class="q" style="font-size:19px;margin:6px 0">${esc(q)} <button class="sec" style="padding:6px 10px" onclick="${vSpk(q)}">♪</button></div><textarea id="vs" style="min-height:80px" placeholder="Answer in English…"></textarea><div class="row" style="margin-top:8px"><button class="sec" onclick="vHint()">Підказка</button><button class="big" onclick="vSay()">Відповісти</button></div>${v.hint?`<div class="fb g" style="font-weight:500">${esc(w.en)} — ${esc(w.uk)}${w.ex?'<br>Приклад: '+esc(w.ex):''}<br>Почніть так: “I think…”, “Once, I…”, “My friend is…”</div>`:''}</div>`}
+
+/* ---- AI через ваш Cloudflare Worker (необов'язково) ---- */
+async function vAI(system,messages){if(!S.aiUrl)throw new Error('AI не підключено');const r=await fetch(S.aiUrl,{method:'POST',headers:{'Content-Type':'application/json','x-app-token':S.aiTok||''},body:JSON.stringify({system,messages})});if(!r.ok)throw new Error('помилка '+r.status);return(await r.json()).text}
+const vAIbox='<div class="card"><button class="big" style="width:100%" onclick="vAICheck()">Перевірити з AI</button><div id="vai" style="margin-top:10px"></div></div>';
+async function vAICheck(){const o=$('#vai');o.textContent='Перевіряю…';try{const j=await vFB(VP.txt,(isSen(VP.c)?'Model sentence to imitate structurally: ':'Target word: ')+VP.c.en);o.innerHTML=vFBhtml(VP.txt,j)}catch(e){o.textContent='Не вдалося: '+e.message}}
+function vAIq(){const v=VP.cv,w=v.w[v.i];v.pend=1;render();
+  const m=[{role:'user',content:'Start the conversation.'},...v.log.map(x=>({role:x.me?'user':'assistant',content:x.t})),{role:'user',content:'[Next target word: '+w.en+'. React briefly to my last answer, then ask ONE short question that makes me use this word.]'}];
+  vAI('You are a friendly English conversation partner for a Ukrainian learner (level B1). Briefly react to the learner\'s last answer in English (one sentence). If it has a mistake, add a short correction in Ukrainian in brackets. Then ask ONE short question. Max 45 words.',m).then(t=>{v.aiq=t}).catch(e=>{v.aiq=null}).finally(()=>{v.pend=0;render()})}
+
+/* ---- Щоденне заняття, нові вправи, єдиний AI-розбір ---- */
+const isSen=c=>/[.?!]$/.test(c.en.trim())||c.en.trim().split(/\s+/).length>=5;
+VT.rec='Згадування';VT.lis='Аудіювання';VT.think='Мислення';
+const VTH=['Describe your day yesterday.','Is it better to learn English alone or with a teacher? Give your opinion.','Tell me about a situation that surprised you.','Continue the story: “I opened the door and…”','What would you do if you suddenly had a free week?','Say this idea in two different ways: “It is hard to find free time.”','Describe your favourite place without saying its name.'];
+const VL={rec:'згадати',lis:'аудіо',ctx:'контекст',sent:'речення',spk:'вимова',conv:'розмова',think:'думати'};
+function lev(a,b){const d=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=d[0];d[0]=i;for(let j=1;j<=b.length;j++){const t=d[j];d[j]=Math.min(d[j]+1,d[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return d[b.length]}
+const vAv=t=>{const a=S.cards.map(c=>vNote(c,t)).filter(Boolean);return a.length?{a:a.reduce((s,o)=>s+o.a,0)/a.length,n:a.length}:{a:0,n:0}};
+function vPlan(){const b={rec:3,lis:2,ctx:1,sent:2,spk:2,conv:1,think:S.aiUrl?1:0},T=Object.keys(b).filter(t=>b[t]);
+  T.forEach(t=>{const x=vAv(t);if(x.n>=3&&x.a>=3.5)b[t]=Math.max(1,b[t]-1)});
+  const w=T.slice().sort((x,y)=>vAv(x).a-vAv(y).a)[0];b[w]++;
+  return Object.keys(b).flatMap(t=>Array(b[t]).fill(t))}
+function vRec(){const ts=Object.keys(VT).filter(t=>t!=='think'||S.aiUrl).sort((a,b)=>vAv(a).a-vAv(b).a),g=Object.entries(S.gram||{}).sort((a,b)=>b[1]-a[1])[0],wk=S.cards.filter(c=>c.vp&&Object.values(c.vp).some(o=>o.a<=2.5)).slice(0,3).map(c=>c.en);
+  return 'Фокус: '+VT[ts[0]].toLowerCase()+(vAv(ts[0]).n?' (найслабший напрям)':' (ще не практикували)')+(wk.length?'. Слабкі слова: '+wk.join(', '):'')+(g?'. Граматика: '+g[0]+' ('+g[1]+')':'')+'.'}
+function vToday(){const p=vPlan(),c={};p.forEach(t=>c[t]=(c[t]||0)+1),du=dueList().length,dn=S.vps.days&&S.vps.days[dk()];
+  return`<div class="card" style="border:2px solid var(--ac)"><div class="row sp"><b>Заняття на сьогодні</b><span class="mt">≈ 20–25 хв</span></div><div class="mt" style="margin:6px 0">${p.length} вправ: ${Object.keys(c).map(t=>c[t]+' '+VL[t]).join(', ')}</div><div class="mt">${esc(vRec())}</div><button class="big" style="width:100%;margin-top:10px" onclick="vStartSess()">${dn?'Ще одне заняття':'Почати заняття'}</button>${du?`<button class="sec" style="width:100%;margin-top:8px" onclick="start('flash')">Спершу повторити картки (${du})</button>`:''}</div>`}
+function vStartSess(){if(!S.cards.length){alert('Спочатку додайте слова.');return}VP.sess={plan:vPlan(),i:0,t0:Date.now(),res:[]};view='vp';ses=null;vGo(VP.sess.plan[0])}
+function vNext(){const s=VP.sess;s.i++;if(s.i>=s.plan.length){S.vps.days=S.vps.days||{};S.vps.days[dk()]=(S.vps.days[dk()]||0)+1;save();VP.t='sum';render()}else vGo(s.plan[s.i])}
+function vSkip(){VP.sess?vNext():(VP.t=null,render())}
+const vProg=()=>VP.sess&&VP.t!=='sum'?`<div class="mt">Крок ${VP.sess.i+1} з ${VP.sess.plan.length}</div><div class="bar" style="margin:6px 0 10px"><i style="width:${VP.sess.i/VP.sess.plan.length*100}%"></i></div>`:'';
+function vSum(){const s=VP.sess,r=s.res||[],w=r.filter(x=>x.g<=2);return`<div class="card"><b>Готово: ${r.length} вправ, ≈ ${Math.max(1,Math.round((Date.now()-s.t0)/6e4))} хв</b><div class="mt" style="margin-top:8px">Було складно:</div>${w.length?w.map(x=>`<div>${esc(x.w)} <span class="mt">· ${VL[x.t]}</span></div>`).join(''):'<div>Нічого. Наступного разу складність зросте.</div>'}<div class="mt" style="margin-top:10px">Наступне заняття. ${esc(vRec())}</div><button class="big" style="width:100%;margin-top:10px" onclick="VP.sess=null;VP.t=null;view='home';render()">На головну</button></div>`}
+/* згадати */
+function vS5(){const c=VP.c;return`<div class="card"><div class="mt">Як це англійською?</div><div class="q" style="margin:6px 0">${esc(c.uk)}</div><input id="vs" autocomplete="off" autocapitalize="off" placeholder="Type in English…" value="${esc(VP.txt)}" ${VP.a?'readonly':''}>${VP.a?'':'<button class="big" style="width:100%;margin-top:8px" onclick="vRecall()">Перевірити</button><button class="sec" style="width:100%;margin-top:8px" onclick="vGiveUp()">Не пам’ятаю</button>'}</div>`+(VP.a?`<div class="card"><div class="fb ${VP.ok?'g':'n'}">${VP.ok?'Правильно ✓':'Правильна відповідь:'} <b>${esc(c.en)}</b> <button class="sec" style="padding:6px 10px" onclick="${vSpk(c.en)}">♪</button></div>${exH(c)}</div>`+vRateUI():'')}
+function vRecall(){const n=s=>s.toLowerCase().replace(/[^a-z' ]/g,'').replace(/\s+/g,' ').trim(),t=n($('#vs').value),e=n(VP.c.en);VP.txt=$('#vs').value;VP.ok=t===e||(e.length>4&&lev(t,e)<=1);VP.a=1;render()}
+function vGiveUp(){VP.txt='';VP.ok=0;VP.a=1;render()}
+/* аудіювання: диктант на синтезованому голосі пристрою */
+function vS6(){const c=VP.c;VP.ls=c.ex||c.en;return`<div class="card"><b>Прослухайте без тексту й запишіть, що почули</b><div class="row" style="margin:10px 0"><button class="big" onclick="speak(VP.ls)">▶ Слухати</button><button class="sec" onclick="vSlow()">Повільно</button></div><textarea id="vs" style="min-height:80px" placeholder="Type what you hear…" ${VP.a?'readonly':''}>${esc(VP.txt)}</textarea>${VP.a?'':'<button class="big" style="width:100%;margin-top:8px" onclick="vListen()">Перевірити</button>'}<div class="mt" style="margin-top:8px">Голос синтезований вашим пристроєм, це не запис носія мови.</div></div>`+(VP.a?VP.res+vRateUI():'')}
+function vSlow(){try{const u=new SpeechSynthesisUtterance(VP.ls);u.lang='en-US';u.rate=.6;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+function vListen(){const t=$('#vs').value,N=s=>s.toLowerCase().replace(/[^a-z' ]/g,' ').split(/\s+/).filter(Boolean),T=N(VP.ls),H=N(t);if(!H.length){alert('Спочатку запишіть почуте.');return}
+  const miss=[...new Set(T.filter(w=>!H.includes(w)&&w.length>3))].slice(0,6),m=T.filter(w=>H.includes(w)).length;VP.txt=t;VP.a=1;
+  VP.res=`<div class="card"><div class="fb ${m===T.length?'g':'n'}">Збіг: ${Math.round(m/T.length*100)}%</div><div style="margin:8px 0">${T.map(w=>`<span style="color:var(--${H.includes(w)?'ok':'bad'});font-weight:700">${esc(w)}</span>`).join(' ')}</div>${VP.c.exu?`<div class="mt">${esc(VP.c.exu)}</div>`:''}${miss.length?`<div class="mt" style="margin-top:8px">Не розпізнали на слух. Додати у словник:</div><div class="row">${miss.map(w=>`<button class="sec" style="padding:6px 10px" data-w="${esc(w)}" onclick="vAdd(this.dataset.w,this)">＋ ${esc(w)}</button>`).join('')}</div>`:''}</div>`;render()}
+function vAdd(w,b){if(S.cards.some(c=>c.en.toLowerCase()===w))return alert('Це слово вже є у словнику.');const u=prompt('Переклад слова «'+w+'»:');if(u===null)return;S.cards.push({id:uid(),en:w,uk:u.trim(),set:'Listening',reps:0,lapses:0,fav:0,h:[],created:Date.now()});save();b.disabled=true;b.textContent='✓ '+w}
+/* AI-розбір: початковий, правильний, природніший варіант, пояснення, вирази; повторювані помилки зберігаються в S.gram */
+async function vFB(text,ctx){const w=Object.entries(S.gram||{}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]).join(', ');
+  const x=await vAI('You are a C1-C2 English teacher for an adult Ukrainian learner. Reply ONLY with JSON, no markdown: {"correct":"grammatically correct version","natural":"how a native speaker would say it","explain":"1-3 short sentences in Ukrainian on the main mistakes and why the natural version sounds better; empty if none","expr":["up to 3 useful English expressions from or related to the text"],"tags":["up to 3 short English grammar tags of the mistakes made, e.g. articles, past simple, prepositions; empty if none"]}. Learner recurring weak areas: '+(w||'unknown')+'.',[{role:'user',content:ctx+'\nLearner text: '+text}]);
+  const j=JSON.parse(x.replace(/```json|```/g,'').trim());(j.tags||[]).forEach(t=>{S.gram=S.gram||{};S.gram[t]=(S.gram[t]||0)+1});save();return j}
+const vFBhtml=(t,j)=>`<div class="card"><div class="mt">Ваш варіант</div><div>${esc(t)}</div><div class="mt" style="margin-top:8px">Правильно</div><b>${esc(j.correct)}</b> <button class="sec" style="padding:6px 10px" onclick="${vSpk(j.correct)}">♪</button><div class="mt" style="margin-top:8px">Природніше</div><b>${esc(j.natural)}</b> <button class="sec" style="padding:6px 10px" onclick="${vSpk(j.natural)}">♪</button>${j.explain?`<p>${esc(j.explain)}</p>`:'<p>Суттєвих помилок немає ✓</p>'}${(j.expr||[]).length?`<div class="mt">Корисні вирази: ${j.expr.map(esc).join(' · ')}</div>`:''}</div>`;
+async function vConvFB(){const o=$('#vai');o.textContent='Аналізую…';try{const t=VP.cv.log.filter(m=>m.me).map(m=>m.t).join('\n');o.innerHTML=vFBhtml(t,await vFB(t,'Free conversation answers'))}catch(e){o.textContent='Не вдалося: '+e.message}}
+/* thinking in English (лише з AI) */
+function vS7(){const c=VP.c;if(!S.aiUrl)return`<div class="card"><b>Ця вправа потребує AI</b><p class="mt">Вільні відповіді й живий розбір неможливі без AI, тому тут немає шаблонної заміни. Підключіть Worker: Practice → «AI (необов'язково)».</p><button class="big" style="width:100%" onclick="vSkip()">Пропустити</button></div>`;
+  return`<div class="card"><div class="mt">Відповідайте англійською, не перекладаючи в голові. Спробуйте вжити: <b>${esc(c.en)}</b></div><div class="q" style="font-size:19px;margin:8px 0">${esc(VP.th)}</div><textarea id="vs" style="min-height:110px" ${VP.a?'readonly':''}>${esc(VP.txt)}</textarea>${VP.a?'':'<button class="big" style="width:100%;margin-top:8px" onclick="vThink()">Відповісти</button>'}</div>`+(VP.a?VP.fb+vRateUI():'')}
+async function vThink(){const t=$('#vs').value.trim();if(!t){alert('Введіть відповідь.');return}VP.txt=t;VP.a=1;VP.fb='<div class="card">Аналізую…</div>';render();try{VP.fb=vFBhtml(t,await vFB(t,'Task: '+VP.th+' (optional target word: '+VP.c.en+')'))}catch(e){VP.fb='<div class="card">Не вдалося: '+esc(e.message)+'</div>'}render()}
+fillEx();render();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script></body></html>
